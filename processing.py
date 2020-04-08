@@ -50,7 +50,7 @@ def eventCorrelationMatrix(timestamps={}, sigma_samples=1):
 
     return output
 
-def rollingCorrelationMatrix(timestamps={}, sigma_samples=1, window_samples=10, overlap_percent=50):
+def rollingCorrelationMatrix(timestamps={}, sigma_samples=1, window_samples=10, overlap_percent=50, Fs=1.):
     ''' Get max timestamp '''
     all_timestamps = [t for sublist in timestamps.values() for t in sublist]
     max_timestamp = max(all_timestamps)
@@ -60,6 +60,7 @@ def rollingCorrelationMatrix(timestamps={}, sigma_samples=1, window_samples=10, 
     output['matrix']    = []
     output['labels']    = []
     output['signals']   = []
+    output['intervals'] =  []
 
     overlap_samples = int(window_samples * overlap_percent/100.)
     skip_samples    = int(window_samples - overlap_samples)
@@ -76,6 +77,7 @@ def rollingCorrelationMatrix(timestamps={}, sigma_samples=1, window_samples=10, 
         output['matrix'].append(event_correlation['matrix'])
         output['labels'].append(event_correlation['labels'])
         output['signals'].append(event_correlation['signals'])
+        output['intervals'].append((i/Fs, (i + window_samples)/Fs))
         ''' Advance window '''
         i += skip_samples
         progressbar.inlineCycles(i, max_timestamp, prefix='Rolling correlation')
