@@ -1,0 +1,37 @@
+"CHANNEL"	"m1"
+"Evt-"
+"No comment"
+"Memory"
+
+1.10
+2.20
+3.30
+
+"CHANNEL"	"m2"
+"Evt-"
+"No comment"
+"Memory"
+
+"CHANNEL"	"m3"
+"Evt-"
+"No comment"
+"Memory"
+
+0.010
+
+"CHANNEL"	"m4"
+"Evt-"
+"No comment"
+"Memory"
+
+2.2222
+4.4444
+6.6666
+8.8888
+
+"CHANNEL"	"m5"
+"Evt-"
+"No comment"
+"Memory"
+
+

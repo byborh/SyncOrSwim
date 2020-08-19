@@ -20,7 +20,7 @@ class MEA:
         for e in self.electrodes:
             if e.label == label:
                 return e
-        return electrodes("N/A", position(0,0))
+        return electrode("N/A", position(0,0))
     def show(self):
         h = plt.figure()
         a = h.add_subplot(111)

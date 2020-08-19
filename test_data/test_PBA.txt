@@ -1,0 +1,19 @@
+# SP detection timestamp list
+# Parameters :
+#  - Filters   : {'family': <class 'biosignal_analysis.analyses.processing.BPfilters'>, 'args': {'hp': [(0.2, 1)], 'lp': [(2.0, 2)], 'filtertype': 'butter', 'Fs': 100.0}}
+#  - Threshold : 20 uV
+# End of header
+Channel D2 (N=0; F=0.0 Hz;)
+Channel H3 (N=1; F=0.0033333333333333335 Hz;)
+1.10
+2.20
+3.30
+Channel F6 (N=2; F=0.006666666666666667 Hz;)
+0.010
+Channel D8 (N=1; F=0.0033333333333333335 Hz;)
+2.2222
+4.4444
+6.6666
+8.8888
+Channel D5 (N=0; F=0.0 Hz;)
+Channel F3 (N=0; F=0.0 Hz;)

@@ -1,5 +1,7 @@
 import re
 import os
+import pathlib
+import pandas as pd
 
 from biosignal_analysis.datamanager import manager
 
@@ -8,16 +10,30 @@ def verbosePrint(str, verbose=True):
         print(str)
 
 ''' DATATYPES '''
-UNRECOGNIZED = -1
-SPIKE2EVENTS =  0
-PYBSAEVENTS  =  1
-H5WAVEFORMS  =  2
+UNRECOGNIZED  = -1
+SPIKE2EVENTS  =  0
+PYBSAEVENTS   =  1
+H5WAVEFORMS   =  2
+RHDWAVEFORMS  =  3
 
 EVENTS    = [SPIKE2EVENTS, PYBSAEVENTS]
-WAVEFORMS = [H5WAVEFORMS]
+WAVEFORMS = [H5WAVEFORMS, RHDWAVEFORMS]
+
+class Timestamps:
+    def __init__(self, timestamps, Fs):
+        self.data = timestamps
+        self.Fs   = Fs
+
+class Waveforms:
+    def __init__(self, waveforms, Fs):
+        self.data = waveforms
+        self.Fs   = Fs
+
 
 def recognize(path):
     extension = os.path.splitext(path)[1]
+    if extension == ".rhd":
+        return RHDWAVEFORMS
     if extension == ".h5":
         return H5WAVEFORMS
     if extension == ".txt":
@@ -25,9 +41,13 @@ def recognize(path):
             lines = f.readlines()
             if lines[0].startswith('"CHANNEL"'):
                 return SPIKE2EVENTS
+            if lines[0].startswith('"INFORMATION"'):
+                return SPIKE2EVENTS
             if lines[0].startswith('"Generated via Matlab."'):
                 return SPIKE2EVENTS
             if lines[0].startswith('# SP detection timestamp list'):
+                return PYBSAEVENTS
+            if lines[0].startswith('# AP detection timestamp list'):
                 return PYBSAEVENTS
     return UNRECOGNIZED
 
@@ -60,7 +80,7 @@ def fromPyBiosignalAnalysis(path, verbose=True):
     regex_ts = re.compile(r'[+-]?[0-9]*[.]?[0-9]+')        # Timestamp line
 
     with open(path, 'r') as f:
-        verbosePrint("Reading Spike2 timestamp file {}...".format(path), verbose)
+        verbosePrint("Reading pyBiosignalAnalysis timestamp file {}...".format(path), verbose)
         lines = f.readlines()
         for l in lines :
             CH = regex_ch.match(l)
@@ -83,9 +103,28 @@ def fromH5(path, import_parameters={}, verbose=True):
     for ch in datasource.getAllChannels():
         signal_idx = datasource.translateChannel(ch)
         signals[ch] = datasource.getSignal(signal_idx)
+    Fs = datasource.getFs()
     datasource.unload()
-    return signals
+    return signals, Fs
 
+def fromRHD(path, import_parameters={}, verbose=True):
+    datasource = manager.DataSource(path)
+    datasource.setImportParameters(import_parameters)
+    datasource.load()
+    signals = {}
+    Ndiscarded = 0
+    for ch in datasource.getAllChannels():
+        signal_idx = datasource.translateChannel(ch)
+        signal = datasource.getSignal(signal_idx)
+        if len(signal) > 1:
+            signals[ch] = signal
+        else:
+            Ndiscarded += 1
+    if Ndiscarded > 0:
+        verbosePrint(f"Warning : discarded {Ndiscarded} channels because {'it has' if Ndiscarded == 1 else 'they have'} length 1.", verbose)
+    Fs = datasource.getFs()
+    datasource.unload()
+    return signals, Fs
 
 def generateTestEvents(T, Fs, family="static"):
     from random import randint
@@ -142,12 +181,66 @@ def generateTestEvents(T, Fs, family="static"):
 
     return timestamps
 
+def exportCSV(path="example.csv", vectors=([1,2,3],[0.1,0.2,0.3]), labels=("Time", "Data"), separator=";"):
+    directory = os.path.dirname(path)
+    pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
+    if len(vectors) < 1:
+        return False
+    if len(vectors) != len(labels):
+        return False
+    def line_format(elements):
+        return ((('{}' + separator + ' ') * N).format(*elements))[:-2] # '{}, {}, ', apply format with elements of tuple "labels", remove last ', '
+    with open(path, "w+") as fid:
+        N = len(vectors)
+
+        ''' Write header '''
+        header = line_format(labels)
+        fid.write(header + "\n")
+
+        ''' Write data '''
+        M = len(vectors[0])
+        for j in range(M):
+            data_line = [vectors[i][j] for i in range(N)]
+            line = line_format(data_line)
+            fid.write(line + "\n")
+    return True
+
+def df2xlsx(df, title, destination):
+    directory = os.path.dirname(destination)
+    pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
+    with pd.ExcelWriter(destination) as writer:
+        df.to_excel(writer)
+        worksheet = writer.sheets[sheet_name]
+        worksheet.write_string(0, 0, title)
+
+def df2xlsx_multisheet(dfs, sheet_names, titles, destination, analyzer=None):
+    directory = os.path.dirname(destination)
+    pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
+    with pd.ExcelWriter(destination) as writer:
+        if analyzer != None:
+            info   = pd.DataFrame({'input file': [str(analyzer.file)], 'Fs (Hz)': [str(analyzer.Fs)]})
+            params = pd.DataFrame({p: [str(analyzer.parameters[p])] for p in analyzer.parameters})
+            info.transpose().to_excel(writer  , sheet_name="Information")
+            params.transpose().to_excel(writer, sheet_name="Parameters" )
+        for df,sheet_name,title in zip(dfs,sheet_names,titles):
+            df.to_excel(writer, sheet_name=sheet_name, startrow=2)
+            worksheet = writer.sheets[sheet_name]
+            worksheet.write_string(0, 0, title)
 
 if __name__ == "__main__":
-    print("================= Test Spike 2 =================")
-    timestamps = fromSpike2("./Timestamps/correl 2nd phase.txt")
-    print(timestamps)
+    def test_fromSpike2():
+        timestamps = fromSpike2("./test_data/test_Spike2.txt")
+        expected_response = {'m1':[1.1,2.2,3.3],'m2':[],'m3':[0.01],'m4':[2.2222,4.4444,6.6666,8.8888],'m5':[]}
+        assert timestamps == expected_response, f"FromSpike2 : Expected {expected_response} (got {timestamps})"
+    def test_fromPBA():
+        timestamps = fromPyBiosignalAnalysis("./test_data/test_PBA.txt")
+        expected_response = {'D2':[],'H3':[1.1,2.2,3.3],'F6':[0.01],'D8':[2.2222,4.4444,6.6666,8.8888],'D5':[],'F3':[]}
+        assert timestamps == expected_response, f"fromPyBiosignalAnalysis : Expected {expected_response} (got {timestamps})"
+    test_fromSpike2()
+    test_fromPBA()
 
-    print("================= Test PyBiosignalAnalysis =================")
-    timestamps = fromPyBiosignalAnalysis("../Data/Recon/Tests/Results/SP0.txt")
-    print(timestamps)
+    print("All passed")
+
+    import processing
+    timestamps = fromPyBiosignalAnalysis("./test_data/test_PBA.txt")
+    print(processing.resample_timestamps(timestamps, 1., 100.) == processing.s2idx(timestamps, 100.))
