@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import seaborn as sb
 import matplotlib as mpl
 from matplotlib import pyplot as plt
@@ -7,6 +8,7 @@ from matplotlib import animation as animation
 from matplotlib import widgets as widgets
 from matplotlib import tri as tri
 import scipy.cluster.hierarchy as spc
+from scipy import stats
 import itertools
 from player import Player
 import progressbar
@@ -281,6 +283,103 @@ def drawOrderSpatial(order, layout, ax=None, Fs=1., speed=False):
             # print("Triangulation or interpolation error")
     ax.axis('equal')
     return ax.get_figure()
+
+def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., reference_channel=None, speed=False):
+    if ax is None:
+        h  = plt.figure()
+        ax = h.add_subplot(111)
+    channels = timeshift_data[0].matrix.columns
+    title = "Isochrones"
+    ax.set_title(title)
+    ''' Prep data '''
+    reference_channel = channels[0] if reference_channel is None else reference_channel
+    values = {str(td.interval): td.matrix[reference_channel] for td in timeshift_data}
+    df_values = pd.DataFrame(values)
+    dt_mean = df_values.mean(axis=1, skipna=True)
+    dt_std  = df_values.std(axis=1, skipna=True)
+    ''' Draw isochrones '''
+    series_dt    = dt_mean
+    series_speed = dt_mean*0
+    channels = series_dt.index
+    for i,ch in enumerate(channels):
+        if i==0:
+            pos0 = layout.getElectrode(ch).position
+        pos1 = layout.getElectrode(ch).position
+        distance_um = np.sqrt((pos1.x-pos0.x)**2 + (pos1.y-pos0.y)**2)
+        distance_m = distance_um / 1e6
+        dt_s = series_dt[ch] / Fs
+        dt_ms = 1000. * dt_s
+        if np.isnan(dt_ms):
+            continue
+        speed_mps = distance_m / dt_s if dt_s > 0 else 0
+        speed_umps = 1e6 * speed_mps
+        series_speed.at[ch] = speed_umps
+        # weight = 'bold' if i==0 else 'normal'
+        # color = 'red' if (order[ch] == np.max(values)) else 'black'
+        # color = cmap(0.25*(order[ch]/len(values)))
+        # color = 'black'
+        # ax.text(*pos1._to_tuple(), f"({i+1})", ha='center', va='bottom', weight=weight, color=color)
+        # dt_or_speed = dt_ms if not(speed) else distance_um
+        # ax.text(*pos1._to_tuple(), f"{dt_or_speed:+2.1f}", ha='center', va='top', weight=weight, size='smaller', color=color)
+    for e in layout.electrodes:
+        if not(e.draw):
+            continue
+        fillstyle = 'full' if e.label in channels else 'none'
+        ax.plot(e.position.x, e.position.y, marker=e.shape, color="black", ms=5, alpha=1.0, fillstyle=fillstyle)
+        # ax.text(e.position.x, e.position.y, str(e.label), color='black', horizontalalignment='center', verticalalignment='center')
+    ''' Contour '''
+    x = []
+    y = []
+    z = []
+    bounds_x = (np.nan, np.nan)
+    bounds_y = (np.nan, np.nan)
+    for e in layout.electrodes:
+        if not(e.draw):
+            continue
+        ch = e.label
+        bounds_x = (min(e.position.x, bounds_x[0]), max(e.position.x, bounds_x[1]))
+        bounds_y = (min(e.position.y, bounds_y[0]), max(e.position.y, bounds_y[1]))
+        zvalue = (1000. * series_dt[ch] / Fs if ch in channels else np.nan) if not speed else (series_speed[ch] if ch in channels else np.nan)
+        if not(np.isnan(zvalue)):
+            x.append(e.position.x)
+            y.append(e.position.y)
+            z.append(zvalue)
+    if len(x) > 2:
+        xi = np.linspace(*bounds_x, 10000)
+        yi = np.linspace(*bounds_y, 10000)
+        try:
+            triang = tri.Triangulation(x, y)
+            interpolator = tri.LinearTriInterpolator(triang, z)
+            Xi, Yi = np.meshgrid(xi, yi)
+            zi = interpolator(Xi, Yi)
+            # contour = ax.contour(xi,yi,zi, cmap='Greys_r', alpha=1.0)
+            contour = ax.contour(xi,yi,zi, colors='black')
+            ax.clabel(contour, inline=True, fontsize=10, fmt="%1.0f ms", inline_spacing=25)
+        except:
+            pass
+            # print("Triangulation or interpolation error")
+    h = ax.get_figure()
+    # cbar = h.colorbar(contour, ax=ax)
+    # if not speed:
+    #     cbar.set_label("dt [ms]")
+    # else:
+    #     cbar.set_label("Speed [µm/s]")
+    ax.set_xlabel("[µm]")
+    ax.set_ylabel("[µm]")
+
+    ''' xlim/ylim '''
+    xcenter = (bounds_x[0] + bounds_x[1])/2.
+    ycenter = (bounds_y[0] + bounds_y[1])/2.
+    delta_x = bounds_x[1] - xcenter
+    delta_y = bounds_y[1] - ycenter
+    margin = 1.2
+    ax.axis('equal')
+    if delta_x > delta_y:
+        ax.set_xlim([xcenter - delta_x*margin, xcenter + delta_x*margin])
+    else:
+        ax.set_ylim([ycenter - delta_y*margin, ycenter + delta_y*margin])
+
+    return h
 
 def drawOrderBargraph(order_stats, timeinfo=False, Fs=None):
     N = len(order_stats.percentage.columns)

@@ -1,4 +1,5 @@
 # Sources
+
 ## engine.py
 High-level analysis management. Input data (timestamps), analysed data (correlation, linkage, etc.), and data representation are all bundled in a single object. This facilitates workflow as its methods permit all necessary data manipulation (loading, processing, exporting) in a streamlined and error-free manner. Processing is handled in a “baking” manner: “baking” refers to retrieving available data, processing it, and storing it locally for further processing without duplicate analyses. The engine either handles auto-baking (baking all dependencies) or alerts which intermediary bakes must be conducted before the current bake.
 

@@ -1,6 +1,7 @@
 import processing
 import representations
 import data_inout
+import colprint
 import json
 from Hardware import MEAs
 from Hardware import recipients
@@ -8,8 +9,44 @@ from Hardware import setups
 
 from biosignal_analysis.analyses import processing as signalprocessing
 import numpy as np
+import pandas as pd
 
 from matplotlib import pyplot as plt
+
+PLOTS = {}
+PLOTS["CORRELATIONMATRIX"]             =  0
+PLOTS["CLUSTEREDEVENTS"]               =  1
+PLOTS["GRANGERCAUSALITYMATRIX"]        =  2
+PLOTS["DENDROGRAM"]                    =  3
+PLOTS["TIMESHIFT"]                     =  4
+PLOTS["ROLLINGCORRELATION"]            =  5
+PLOTS["ROLLINGTIMESHIFT"]              =  6
+PLOTS["ROLLINGTIMESHIFTSPATIAL"]       =  7
+PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"] =  8
+PLOTS["ROLLINGORDERSPATIAL"]           =  9
+PLOTS["ROLLINGORDERBAR"]               = 10
+PLOTS["ROLLINGORDERPIE"]               = 11
+
+EXPORTS = {}
+EXPORTS["CORRELATIONMATRIX"]      = 0
+EXPORTS["GRANGERCAUSALITYMATRIX"] = 1
+EXPORTS["DENDROGRAM"]             = 2
+EXPORTS["TIMESHIFT"]              = 3
+EXPORTS["ORDER"]                  = 4
+EXPORTS["CLUSTERING"]             = 5
+EXPORTS["ROLLINGCORRELATION"]     = 6
+EXPORTS["ROLLINGTIMESHIFT"]       = 7
+EXPORTS["ROLLINGORDER"]           = 8
+
+TIMESTAMP_DATATYPES = [data_inout.SPIKE2EVENTS, data_inout.PYBSAEVENTS]
+WAVEFORM_DATATYPES  = [data_inout.H5WAVEFORMS, data_inout.RHDWAVEFORMS]
+
+MSG_EXPORT_FAILED = "Export is not ready"
+
+
+def prompt_fs():
+    """ User interaction - can be overloaded depending on working environment """
+    return float(input("What was the sampling frequency ? I can't tell yet."))
 
 class CorrelationDataframe:
     def printFs(self, msg = ""):
@@ -19,6 +56,7 @@ class CorrelationDataframe:
     def __init__(self):
         self.Fs = None
         self.file = None
+        self.datatype = None
         ''' Parameters '''
         self.autobake = True
         self.parameters = {}
@@ -27,7 +65,7 @@ class CorrelationDataframe:
         self.parameters["GLR"] = {"enable": False, "distribution": "normal", "reference_region_s":(0,300)}
         self.parameters["time_range_s"] = None
         self.parameters["evt_tolerance_s"] = 0.5
-        self.parameters["correlation_tolerance"] = 0.4
+        self.parameters["correlation_tolerance"] = None
         self.parameters["rolling_window_s"] = 30.
         self.parameters["channel_filters"] = []
         self.parameters["filters"] = {"family": "BPfilters", "args": {"hp": [[0.2, 1]], "lp": [[2.0, 2]], "filtertype": "bessel"}}
@@ -39,6 +77,11 @@ class CorrelationDataframe:
         self.resetTimestampData()
         self.resetWaveformData()
         self.resetProcessedData()
+    def _checkBackwardsCompatibility(self):
+        ''' RMS parameters '''
+        if (type(self.parameters["RMS"]) is not dict) and ("RMS_window_s" in self.parameters):
+            self.parameters["RMS"] = {"enable": self.parameters["RMS"], "window_s": self.parameters["RMS_window_s"]}
+            del self.parameters["RMS_window_s"]
     def _onBakeFinish(self, *args, **kwarks):
         pass
     def resetProcessedData(self):
@@ -51,9 +94,12 @@ class CorrelationDataframe:
         self.timestamps_raw = None
         self.timestamps = None
         self.Fs_raw = None
+        self.duration_s = None
     def resetWaveformData(self):
         self.waveforms_raw = None
         self.waveforms = None
+        self.Fs_raw = None
+        self.duration_s = None
     def resetCorrelationData(self):
         self.correlation_data = None
         self.granger_data = None
@@ -67,8 +113,9 @@ class CorrelationDataframe:
         self.rolling_order_data = None
         self.order_stats = None
     def resetClusteringData(self):
-        self.clusters = None
-        self.linkage  = None
+        self.clustering_data = None
+        self.clusters = None # legacy; todo : remove me
+        self.linkage  = None # legacy; todo : remove me
 
     def loadFile(self, path, *args, **kwargs):
         datatype = data_inout.recognize(path)
@@ -79,7 +126,9 @@ class CorrelationDataframe:
             self.loadWaveforms(path, **kwargs)
             self.file = path
         if datatype == -1:
-            print("Unrecognized data type")
+            colprint.printerr("Unrecognized data type")
+        self.datatype = datatype
+        return datatype
     def loadTimestamps(self, path, *args, **kwargs):
         datatype = data_inout.recognize(path)
         import_methods = {}
@@ -94,6 +143,7 @@ class CorrelationDataframe:
         self.timestamps_raw = processing.deepcopy_data(timestamps_i)
         self.timestamps     = processing.deepcopy_data(timestamps_i)
         self.Fs = self.parameters["processing_Fs"]
+        self.duration_s = max([max(timestamps_i[k]) for k in timestamps_i]) / self.parameters["processing_Fs"]
     def loadWaveforms(self, path, *args, **kwargs):
         datatype = data_inout.recognize(path)
         import_methods = {}
@@ -103,8 +153,9 @@ class CorrelationDataframe:
         waveforms, Fs = import_methods[datatype](path, **kwargs)
         self.waveforms_raw = processing.deepcopy_data(waveforms)
         self.waveforms     = processing.deepcopy_data(waveforms)
-        self.Fs = Fs if Fs else float(input("What was the sampling frequency ? I can't tell yet."))
+        self.Fs = Fs if Fs else prompt_fs()
         self.Fs_raw = 1. * self.Fs
+        self.duration_s = max([len(self.waveforms_raw[k]) for k in self.waveforms_raw]) / self.Fs_raw
 
     def preprocessWaveforms(self):
         if self.timestamps_raw:
@@ -177,6 +228,7 @@ class CorrelationDataframe:
             self.timestamps = processing.crop_timestamps(self.timestamps, (T0,T1))
 
     def bakeWaveforms(self):
+        self._checkBackwardsCompatibility()
         ''' Check input data '''
         needed_data = [self.timestamps]
         messages    = ["No timestamp data loaded."]
@@ -189,6 +241,7 @@ class CorrelationDataframe:
         self._onBakeFinish()
         return True
     def bakeCorrelation(self):
+        self._checkBackwardsCompatibility()
         ''' Check input data '''
         needed_data = [self.waveforms]
         messages    = ["No waveforms loaded or waveforms not baked."]
@@ -201,7 +254,19 @@ class CorrelationDataframe:
         self.correlation_data = correlation_data
         self._onBakeFinish()
         return True
+    def exportCorrelation(self, destination=None, which=-1):
+        if not self._isExportReady(EXPORTS["CORRELATIONMATRIX"]):
+            colprint.printerr(MSG_EXPORT_FAILED)
+            return False
+        if which in [-1, 0]:
+            ''' which=0 : correlation matrix '''
+            datasets = []; sheet_names = []; titles = []
+            datasets.append(self.correlation_data.matrix); sheet_names.append("matrix"); titles.append("Correlation matrix")
+            destination = (self.file + '.correlation_matrix.xlsx') if destination is None else destination
+            data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
+        return True
     def bakeGranger(self):
+        self._checkBackwardsCompatibility()
         ''' Check input data '''
         needed_data = [self.waveforms]
         messages    = ["No waveforms loaded or waveforms not baked."]
@@ -214,7 +279,10 @@ class CorrelationDataframe:
         self.granger_data = granger_data
         self._onBakeFinish()
         return True
+    def exportGranger(self, destination=None, which=-1):
+        pass
     def bakeTimeshift(self):
+        self._checkBackwardsCompatibility()
         ''' Check input data '''
         needed_data = [self.waveforms]
         messages    = ["No waveforms loaded or waveforms not baked."]
@@ -227,7 +295,20 @@ class CorrelationDataframe:
         self.timeshift_data = timeshift_data
         self._onBakeFinish()
         return True
+    def exportTimeshift(self, destination=None, which=-1):
+        if not self._isExportReady(EXPORTS["TIMESHIFT"]):
+            colprint.printerr(MSG_EXPORT_FAILED)
+            return False
+        if which in [-1, 0]:
+            ''' which=0 : timeshift data '''
+            datasets = []; sheet_names = []; titles = []
+            datasets.append(self.timeshift_data.matrix)      ; sheet_names.append("dt matrix"); titles.append("Computed dt matrix")
+            datasets.append(self.timeshift_data.correlation) ; sheet_names.append("Correlation"); titles.append("Correlation matrix of re-aligned signals")
+            destination = (self.file + '.timeshift.xlsx') if destination is None else destination
+            data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
+        return True
     def bakeOrder(self):
+        self._checkBackwardsCompatibility()
         ''' Check input data '''
         needed_data = [self.timeshift_data]
         messages    = ["Timeshift data not baked."]
@@ -240,7 +321,23 @@ class CorrelationDataframe:
         self.order_data = order_data
         self._onBakeFinish()
         return True
+    def exportOrder(self, destination=None, which=-1):
+        if not self._isExportReady(EXPORTS["ORDER"]):
+            colprint.printerr(MSG_EXPORT_FAILED)
+            return False
+        if which in [-1, 0]:
+            ''' which=0 : order data '''
+            datasets = []; sheet_names = []; titles = []
+            datasets.append(self.order_data.series)            ; sheet_names.append("series")   ; titles.append("Timeshift vector sorted")
+            datasets.append(pd.Series(self.order_data.order))  ; sheet_names.append("order")    ; titles.append("Order")
+            datasets.append(pd.Series(self.order_data.values)) ; sheet_names.append("timeshift"); titles.append("Timeshift values")
+            # datasets.append(self.order_data.average)     ; sheet_names.append("average")  ; titles.append("Average timeshift")
+            # datasets.append(self.order_data.std)         ; sheet_names.append("std")      ; titles.append("SD of timeshift")
+            destination = (self.file + '.order.xlsx') if destination is None else destination
+            data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
+        return True
     def bakeActivationOrder(self):
+        self._checkBackwardsCompatibility()
         ''' Check input data '''
         needed_data = [self.waveforms]
         messages    = ["No waveforms loaded or waveforms not baked."]
@@ -249,7 +346,10 @@ class CorrelationDataframe:
             return False
         ''' Compute activation '''
         pass
+    def exportActivationOrder(self, destination=None, which=-1):
+        pass
     def bakeClustering(self):
+        self._checkBackwardsCompatibility()
         ''' Check input data '''
         needed_data = [self.correlation_data]
         messages    = ["Correlation data not baked."]
@@ -259,11 +359,25 @@ class CorrelationDataframe:
         ''' Bake clustering '''
         corr_tolerance = self.parameters["correlation_tolerance"]
         clustering = processing.getClustering(self.correlation_data.matrix, tolerance=corr_tolerance)
-        self.clusters = clustering.clusters
-        self.linkage  = clustering.linkage
+        self.clustering_data = clustering
+        self.clusters = clustering.clusters # legacy; todo: remove me
+        self.linkage  = clustering.linkage  # legacy; todo: remove me
         self._onBakeFinish()
         return True
+    def exportClustering(self, destination=None, which=-1):
+        if not self._isExportReady(EXPORTS["CLUSTERING"]):
+            colprint.printerr(MSG_EXPORT_FAILED)
+            return False
+        if which in [-1, 0]:
+            ''' which=0 : clustering data '''
+            datasets = []; sheet_names = []; titles = []
+            datasets.append(pd.Series(self.clustering_data.clusters))                                          ; sheet_names.append("clusters")   ; titles.append("List of clusters")
+            datasets.append(data_inout.linkage2df(self.clustering_data.linkage, self.clustering_data.labels))  ; sheet_names.append("linkage")    ; titles.append("Linkage")
+            destination = (self.file + '.clustering.xlsx') if destination is None else destination
+            data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
+        return True
     def bakeRollingCorrelation(self):
+        self._checkBackwardsCompatibility()
         ''' Check input data '''
         needed_data = [self.waveforms]
         messages    = ["No waveform data loaded."]
@@ -278,7 +392,29 @@ class CorrelationDataframe:
         self.rolling_correlation_data = rolling_correlation
         self._onBakeFinish()
         return True
+    def exportRollingCorrelation(self, destination=None, which=-1):
+        if not self._isExportReady(EXPORTS["ROLLINGCORRELATION"]):
+            colprint.printerr(MSG_EXPORT_FAILED)
+            return False
+        if which in [-1, 0]:
+            ''' which=0 : correlation for all couples '''
+            N = len(self.rolling_correlation_data)
+            channels = self.rolling_correlation_data[0].matrix.columns
+            stacked_data = np.stack([instant.matrix.to_numpy() for instant in self.rolling_correlation_data])
+            windows_samples = [instant.interval for instant in self.rolling_correlation_data]
+            windows_s = [(interval[0]/self.parameters["processing_Fs"], interval[1]/self.parameters["processing_Fs"]) for interval in windows_samples]
+            windows = [f"{interval[0]:.2f}-{interval[1]:.2f} s" for interval in windows_s]
+            data = pd.DataFrame(data=None, index=windows, columns=[])
+            for i,ch1 in enumerate(channels):
+                for j,ch2 in enumerate(channels):
+                    if i>j:
+                        data.at[:,f"{ch1}-{ch2}"] = stacked_data[:,i,j]
+            data_inout.df2xlsx(data, "Rolling Correlation", destination)
+        return True
+
+
     def bakeRollingTimeshift(self):
+        self._checkBackwardsCompatibility()
         ''' Check input data '''
         needed_data = [self.waveforms]
         messages    = ["No waveform data loaded."]
@@ -293,7 +429,10 @@ class CorrelationDataframe:
         self.rolling_timeshift_data = rolling_timeshift
         self._onBakeFinish()
         return True
+    def exportRollingTimeshift(self, destination=None, which=-1):
+        pass
     def bakeRollingOrder(self):
+        self._checkBackwardsCompatibility()
         ''' Check input data '''
         needed_data = [self.rolling_timeshift_data]
         messages    = ["Rolling timeshift not baked."]
@@ -306,38 +445,39 @@ class CorrelationDataframe:
         self.order_stats = processing.order_matrix(rolling_order)
         self._onBakeFinish()
         return True
-    def exportRollingOrder(self, destination=None):
-        if not(self.rolling_order_data):
-            print("No data found")
+    def exportRollingOrder(self, destination=None, which=-1):
+        if not self._isExportReady(EXPORTS["ROLLINGORDER"]):
+            colprint.printerr(MSG_EXPORT_FAILED)
             return False
         order_stats = self.order_stats
-        datasets = []; sheet_names = []; titles = []
-        datasets.append(order_stats.percentage)                  ; sheet_names.append("percentage"); titles.append("Fraction of time at rank #i (%)")
-        datasets.append(1000. * order_stats.dt / self.Fs)        ; sheet_names.append("dt_avg")    ; titles.append("Average lag behind leader (ms)")
-        datasets.append(1000. * order_stats.dt_std / self.Fs)    ; sheet_names.append("dt_std")    ; titles.append("STD lag behind leader (ms)")
-        datasets.append(order_stats.N)                           ; sheet_names.append("N")         ; titles.append(f"Number of times at rank #i (out of {order_stats.Ntotal} total)")
-        destination = (self.file + '.order_stats.xlsx') if destination is None else destination
-        data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
+        if which in [-1, 0]:
+            datasets = []; sheet_names = []; titles = []
+            datasets.append(order_stats.percentage)                  ; sheet_names.append("percentage"); titles.append("Fraction of time at rank #i (%)")
+            datasets.append(1000. * order_stats.dt / self.Fs)        ; sheet_names.append("dt_avg")    ; titles.append("Average lag behind leader (ms)")
+            datasets.append(1000. * order_stats.dt_std / self.Fs)    ; sheet_names.append("dt_std")    ; titles.append("STD lag behind leader (ms)")
+            datasets.append(order_stats.N)                           ; sheet_names.append("N")         ; titles.append(f"Number of times at rank #i (out of {order_stats.Ntotal} total)")
+            destination = (self.file + '.order_stats.xlsx') if destination is None else destination
+            data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
     def checkDependencies(self, data, message, baker=None):
         output = True
         if baker is None:
             baker = [None for _ in data]
         for d,m,b in zip(data, message, baker):
             if not(d):
-                print("Unsatisfied dependency : {}".format(m))
+                colprint.printwar("Unsatisfied dependency : {}".format(m))
                 if self.autobake:
-                    print("  Attempting autobaking ...")
+                    colprint.printwar("  Attempting autobaking ...")
                     if not(b):
-                        print("  No baker found. Could not proceed.")
+                        colprint.printerr("  No baker found. Could not proceed.")
                         output = False
                     else:
                         if b():
-                            print("  Autobaking succeeded.")
+                            colprint.printokg("  Autobaking succeeded.")
                         else:
-                            print("  Autobaking failed.")
+                            colprint.printerr("  Autobaking failed.")
                             output = False
                 else:
-                    print("Could not proceed.")
+                    colprint.printerr("Could not proceed.")
                     output = False
         return output
     def __repr__(self):
@@ -363,7 +503,7 @@ class CorrelationDataframe:
             string += "Clustering not baked.\n"
         else:
             string += "Identified clusters :\n"
-            for c in self.clusters:
+            for c in self.clustering_data.clusters:
                 string += "  - " + ", ".join(c) + "\n"
             string += "Linkage :\n"
             for l in str(self.linkage).splitlines():
@@ -415,35 +555,51 @@ class CorrelationDataframe:
                 string += ''.join(line3_txt)
         return string
     """ Plots """
-    def drawCorrelation(self):
-        if self.correlation_data:
+    def drawCorrelation(self, which=-1):
+        if self._isPlotReady(PLOTS["CORRELATIONMATRIX"]) and which in [-1,0]:
             representations.drawCorrelation(self.correlation_data.matrix, title='Correlation matrix')
-        if self.timestamps and self.clusters: # self.clusters is generated at the same time as self.linkage
-            representations.drawClusteredEvents(self.timestamps, self.linkage)
-        if self.granger_data:
+        if self._isPlotReady(PLOTS["GRANGERCAUSALITYMATRIX"]) and which in [-1,1]:
             representations.drawCorrelation(self.granger_data.matrix, title='Granger causality matrix', bounds=(None,None))
-        if self.correlation_data and self.clusters:
+        if which in [-1,0,1]:
+            plt.show(block=False)
+    def drawClustering(self, which=-1):
+        if self._isPlotReady(PLOTS["CLUSTEREDEVENTS"]) and which in [-1,0]:
+            representations.drawClusteredEvents(self.timestamps, self.linkage)
+        if self._isPlotReady(PLOTS["DENDROGRAM"]) and which in [-1,1]:
             representations.drawDendrogram(self.correlation_data.matrix, self.linkage)
-        plt.show()
-    def drawRollingCorrelation(self):
-        representations.animate_rollingCorrelation(self.rolling_correlation_data, self.waveforms, Fs=self.Fs)
-
-    def drawRollingTimeshift(self):
+        if which in [-1,0,1]:
+            plt.show(block=False)
+    def drawRollingCorrelation(self, which=-1):
+        if self._isPlotReady(PLOTS["ROLLINGCORRELATION"]) and which in [-1,0]:
+            representations.animate_rollingCorrelation(self.rolling_correlation_data, self.waveforms, Fs=self.Fs)
+        if which in [-1,0]:
+            plt.show(block=False)
+    def drawRollingTimeshift(self, which=-1):
         MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
-        # if self.rolling_timeshift_data and self.waveforms:
-        #     representations.animate_rollingTimeshift(self.rolling_timeshift_data, self.waveforms, Fs=self.Fs)
-        # if self.rolling_timeshift_data and self.waveforms:
-        #     representations.animate_rollingTimeshiftSpatial(self.rolling_timeshift_data, MEA_layout, self.waveforms, Fs=self.Fs)
-        if self.rolling_order_data and self.waveforms:
-            representations.animate_rollingOrderSpatial(self.rolling_order_data, self.rolling_timeshift_data, MEA_layout, self.waveforms, Fs=self.Fs, speed=False, env=self.parameters['environment'])
-    def drawRollingOrderStats(self):
-        if self.order_stats:
+        if self._isPlotReady(PLOTS["ROLLINGTIMESHIFT"]) and which in[-1,0]:
+            representations.animate_rollingTimeshift(self.rolling_timeshift_data, self.waveforms, Fs=self.Fs)
+        if self._isPlotReady(PLOTS["ROLLINGTIMESHIFTSPATIAL"]) and which in[-1,1]:
+            representations.animate_rollingTimeshiftSpatial(self.rolling_timeshift_data, MEA_layout, self.waveforms, Fs=self.Fs)
+        if self._isPlotReady(PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"]) and which in[-1,2]:
+            representations.drawRollingTimeshiftSpatial(self.rolling_timeshift_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"])
+        if which in [-1,0,1,2]:
+            plt.show(block=False)
+    def drawRollingOrderStats(self, which=-1):
+        MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
+        if self._isPlotReady(PLOTS["ROLLINGORDERBAR"]) and which in [-1,0]:
             representations.drawOrderBargraph(self.order_stats, timeinfo=True, Fs=self.parameters["processing_Fs"])
-            representations.drawOrderPie(self.order_stats, self.parameters["MEA_layout"], timeinfo=False, Fs=self.parameters["processing_Fs"])
-    def drawTimeshift(self):
-        MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
-        representations.drawTimeshiftSpatial(self.timeshift_data.matrix, MEA_layout, Fs=self.Fs)
-        plt.show()
+        if self._isPlotReady(PLOTS["ROLLINGORDERPIE"]) and which in [-1,1]:
+            representations.drawOrderPie(self.order_stats, MEA_layout, timeinfo=False, Fs=self.parameters["processing_Fs"])
+        if self._isPlotReady(PLOTS["ROLLINGORDERSPATIAL"]) and which in [-1,2]:
+            representations.animate_rollingOrderSpatial(self.rolling_order_data, self.rolling_timeshift_data, MEA_layout, self.waveforms, Fs=self.Fs, speed=False, env=self.parameters['environment'])
+        if which in [-1,0,1,2]:
+            plt.show(block=False)
+    def drawTimeshift(self, which=-1):
+        if self._isPlotReady(PLOTS["TIMESHIFT"]) and which in [-1,0]:
+            MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
+            representations.drawTimeshiftSpatial(self.timeshift_data.matrix, MEA_layout, Fs=self.Fs)
+        if which in [-1,0]:
+            plt.show(block=False)
     ''' Parameter handling '''
     def importParameters(self, path):
         with open(path, 'r') as fid:
@@ -463,6 +619,53 @@ class CorrelationDataframe:
         """ parameters is a dictionary """
         for k in parameters:
             self.parameters[k] = parameters[k]
+    def _isPlotReady(self, which):
+        if which == PLOTS["CORRELATIONMATRIX"]:
+            return bool(self.correlation_data)
+        if which == PLOTS["CLUSTEREDEVENTS"]:
+            return bool(self.timestamps and self.clustering_data)
+        if which == PLOTS["GRANGERCAUSALITYMATRIX"]:
+            return bool(self.granger_data)
+        if which == PLOTS["DENDROGRAM"]:
+            return bool(self.correlation_data and self.clustering_data)
+        if which == PLOTS["TIMESHIFT"]:
+            return bool(self.timeshift_data)
+        if which == PLOTS["ROLLINGCORRELATION"]:
+            return bool(self.rolling_correlation_data and self.waveforms)
+        if which == PLOTS["ROLLINGTIMESHIFT"]:
+            return bool(self.rolling_timeshift_data and self.waveforms)
+        if which == PLOTS["ROLLINGTIMESHIFTSPATIAL"]:
+            return False # todo : refine this representation
+            # return bool(self.rolling_timeshift_data and self.waveforms)
+        if which == PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"]:
+            return bool(self.rolling_timeshift_data and self.waveforms)
+        if which == PLOTS["ROLLINGORDERSPATIAL"]:
+            return bool(self.rolling_order_data and self.rolling_timeshift_data and self.waveforms)
+        if which == PLOTS["ROLLINGORDERBAR"]:
+            return bool(self.order_stats)
+        if which == PLOTS["ROLLINGORDERPIE"]:
+            return bool(self.order_stats)
+        return False
+    def _isExportReady(self, which):
+        if which == EXPORTS["CORRELATIONMATRIX"]:
+            return bool(self.correlation_data)
+        if which == EXPORTS["GRANGERCAUSALITYMATRIX"]:
+            return False
+        if which == EXPORTS["DENDROGRAM"]:
+            return False
+        if which == EXPORTS["TIMESHIFT"]:
+            return bool(self.timeshift_data)
+        if which == EXPORTS["ORDER"]:
+            return bool(self.order_data)
+        if which == EXPORTS["CLUSTERING"]:
+            return bool(self.clustering_data)
+        if which == EXPORTS["ROLLINGCORRELATION"]:
+            return bool(self.rolling_correlation_data)
+        if which == EXPORTS["ROLLINGTIMESHIFT"]:
+            return False
+        if which == EXPORTS["ROLLINGORDER"]:
+            return bool(self.rolling_order_data)
+        return False
 
 
 if __name__ == "__main__":

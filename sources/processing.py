@@ -14,6 +14,10 @@ import progressbar
 import itertools
 from biosignal_analysis.analyses import processing as signalprocessing
 
+def pbar(*args, **kwargs):
+    """ Definition of a progressbar that can easily be overloaded """
+    progressbar.inlineCycles(*args, **kwargs)
+
 def verbosePrint(str, verbose=True):
     if verbose:
         print(str)
@@ -28,7 +32,7 @@ def map_to_dict(function, dictionary, *args, **kwargs):
     for i,k in enumerate(dictionary):
         output[k] = function(dictionary[k], *args, **kwargs)
         if progress_message:
-            progressbar.inlineCycles(i, len(dictionary), prefix=progress_message)
+            pbar(i, len(dictionary), prefix=progress_message)
     return output
 
 def apply_rolling(func1d, array1d, window_samples, shift_samples, *args, **kwargs):
@@ -115,7 +119,7 @@ def rollingCorrelation(signals={}, window_samples=10, overlap_samples=5):
         ''' Advance window '''
         i += skip_samples
         j = i + window_samples
-        progressbar.inlineCycles(j, N, prefix='Rolling correlation')
+        pbar(j, N, prefix='Rolling correlation')
 
     return output
 
@@ -144,7 +148,7 @@ def rollingTimeshift(signals={}, window_samples=10, overlap_samples=7):
         i += skip_samples
         j = i + window_samples
         if L > 1: # Prevent some weird printing behaviour caused by pandas (?)
-            progressbar.inlineCycles(j, N, prefix='Rolling timeshift', done=f"Done (discarded {N-i} samples)")
+            pbar(j, N, prefix='Rolling timeshift', done=f"Done (discarded {N-i} samples)")
     if L <= 1: # Prevent some weird printing behaviour caused by pandas (?)
         print(f"Done (discarded {N-i} samples)")
     return output
@@ -158,13 +162,15 @@ def rollingOrder(rolling_timeshift, reference=None):
     for i,timeshift in enumerate(rolling_timeshift):
         order_data = timeshiftOrder(timeshift.matrix, reference=reference)
         output.append(rolling_order_data(order_data.series, order_data.order, order_data.values, timeshift.interval))
-        progressbar.inlineCycles(i, N, prefix='Rolling order')
+        pbar(i, N, prefix='Rolling order')
     return output
 
-def getClustering(dataframe, tolerance=0.3):
+def getClustering(dataframe, tolerance=None):
     matrix = dataframe.values
     labels = dataframe.columns
     linkage = spc.linkage(matrix, method='average')
+    if tolerance is None:
+        tolerance = 0.7 * np.max(linkage[:,2]) # Same as spc.dendrogram
     clustering = pd.Series(spc.fcluster(linkage, t=tolerance, criterion='distance'), index=labels)
     Nclusters = max(clustering)
     clusters = []
@@ -217,6 +223,7 @@ def timeshiftOrder(timeshift_matrix, reference=None):
     return order_data(timeshift_vector_pos_sorted, order, timeshift_values, average, std)
 
 def order_matrix(rolling_order):
+    # print(rolling_order)
     N = len(rolling_order[0].series) # Number of channels
     channels = rolling_order[0].series.index
     orders   = [f"#{i+1}" for i in range(N)]
@@ -257,13 +264,13 @@ def rolling_RMS(waveforms, window_samples=10):
     waveforms_rms = {}
     for i,k in enumerate(waveforms):
         waveforms___s[k] = np.square(waveforms[k]) # Compute square of signal
-        progressbar.inlineCycles(i, len(waveforms), prefix='Rolling RMS (S)')
+        pbar(i, len(waveforms), prefix='Rolling RMS (S)')
     for i,k in enumerate(waveforms___s):
         waveforms__ms[k] = np.convolve(waveforms___s[k], window, 'valid') # Rolling mean using convolution for better performance
-        progressbar.inlineCycles(i, len(waveforms), prefix='Rolling RMS (M)')
+        pbar(i, len(waveforms), prefix='Rolling RMS (M)')
     for i,k in enumerate(waveforms__ms):
         waveforms_rms[k] = np.sqrt(waveforms__ms[k]) # Compute sqrt of rolling mean
-        progressbar.inlineCycles(i, len(waveforms), prefix='Rolling RMS (R)')
+        pbar(i, len(waveforms), prefix='Rolling RMS (R)')
 
     return waveforms_rms
 
@@ -287,7 +294,7 @@ def rolling_normalization(waveforms, window_samples=10, overlap_samples=5):
         ''' Advance window '''
         i += skip_samples
         j = i + window_samples
-        progressbar.inlineCycles(j, N, prefix='Rolling normalization')
+        pbar(j, N, prefix='Rolling normalization')
 
     return output
 
@@ -588,7 +595,7 @@ def get_best_distribution(data):
     continuous_distributions["wrapcauchy"] = stats.wrapcauchy
     results = {}
     for i,k in enumerate(continuous_distributions):
-        progressbar.inlineCycles(i,len(continuous_distributions), prefix="Getting best distribution", suffix=k)
+        pbar(i,len(continuous_distributions), prefix="Getting best distribution", suffix=k)
         try:
             mle_results = MLE(data, continuous_distributions[k])
             success = mle_results.success
@@ -598,7 +605,7 @@ def get_best_distribution(data):
             results[k] = np.sum(continuous_distributions[k].logpdf(data, *mle_results.x))
         else:
             results[k] = -np.inf
-    print(results)
+    # print(results)
     for k in results:
         if results[k] == max(list(results.values())):
             print(f"Best distribution found : {k}")

@@ -209,7 +209,8 @@ def df2xlsx(df, title, destination):
     directory = os.path.dirname(destination)
     pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
     with pd.ExcelWriter(destination) as writer:
-        df.to_excel(writer)
+        sheet_name = "Sheet"
+        df.to_excel(writer, sheet_name=sheet_name, startrow=2)
         worksheet = writer.sheets[sheet_name]
         worksheet.write_string(0, 0, title)
 
@@ -226,6 +227,33 @@ def df2xlsx_multisheet(dfs, sheet_names, titles, destination, analyzer=None):
             df.to_excel(writer, sheet_name=sheet_name, startrow=2)
             worksheet = writer.sheets[sheet_name]
             worksheet.write_string(0, 0, title)
+
+def linkage2df(linkage_matrix, channels):
+    N = linkage_matrix.shape[0] + 1
+    cluster_names = [f"C{i}" for i in range(N-1)]
+    column_names  = ["Channel or Cluster A", "Channel or Cluster B", "Distance", "# of observations in the cluster"]
+    df     = pd.DataFrame(linkage_matrix, columns=column_names, index=cluster_names)
+    df_out = pd.DataFrame({column_names[0]: pd.Series(['']*(N-1), dtype='str'),
+                           column_names[1]: pd.Series(['']*(N-1), dtype='str'),
+                           column_names[2]: pd.Series([ 0]*(N-1), dtype='float'),
+                           column_names[3]: pd.Series([ 0]*(N-1), dtype='int')},
+                           index=cluster_names,
+                           columns=column_names)
+    ''' Channel names in two first columns '''
+    for j in range(2):
+        for i in range(N-1):
+            row = cluster_names[i]
+            col = column_names[j]
+            value = df.loc[row,col]
+            newvalue = channels[int(value)] if value < N else cluster_names[int(value)-N]
+            df_out.at[row, col] =  newvalue
+    ''' Distance in third column '''
+    for i in range(N-1):
+        df_out.iat[i,2] = df.iloc[i,2]
+    ''' Number of observations in cluster in fourth column '''
+    for i in range(N-1):
+        df_out.iat[i,3] = df.iloc[i,3]
+    return df_out
 
 if __name__ == "__main__":
     def test_fromSpike2():
