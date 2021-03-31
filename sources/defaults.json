@@ -1,0 +1,27 @@
+{
+  "GLR": {
+    "distribution": "normal",
+    "enable": false,
+    "reference_region_s": [
+      0,
+      300
+    ]
+  },
+  "MEA_layout": "MEA_60HexaMEA_40_10",
+  "RMS": {
+    "enable": false,
+    "window_s": 15.0
+  },
+  "channel_filters": [],
+  "correlation_tolerance": null,
+  "environment": "tkinter",
+  "evt_tolerance_s": 0.5,
+  "filters": {"family": "BPfilters", "args": {"hp": [[0.2,1]], "lp": [[2.0,2]], "filtertype": "bessel"}},
+  "hub_reference": null,
+  "normalize": {
+    "enable": false
+  },
+  "processing_Fs": 100.0,
+  "rolling_window_s": 30.0,
+  "time_range_s": null
+}

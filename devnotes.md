@@ -5,12 +5,14 @@
 ### Todo
 
 * [ ] Faire une doc utilisateur
-* [ ] Terminer l'interface
+* [X] Terminer l'interface
 * [ ] Eprouver l'interface
-* [ ] Préparer une install python mobile OU générer un éxécutable
-  * [ ] Lister les dépendances
+* [X] Préparer une install python mobile OU générer un éxécutable
+  * [X] Lister les dépendances
 * [X] Mettre en place le versioning pour la première version déployée
 * [ ] Compléter les exports
+* [ ] FIXME : issue with autobaking and the gui : if an analysis is run and prompts autobaking (meaning a dependency is not ticked), re-running analyses doesn't recurse, meaning that the engine utilizes pre-computed results that will not get updated : if a parameter has changed inbetween, it will not be taken into account. Possible fixes : add a --recurse flag to analyses ? disable autobaking with gui ? (which would defeat the purpose because it was specifically added to be more user-friendly ...) Reset processed data before running analysis ?
+* [ ] TODO : replace success/failure routines returning `True`/`False` values with exception handling
 
 ## Etat GUI
 

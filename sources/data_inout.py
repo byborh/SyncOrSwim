@@ -3,7 +3,7 @@ import os
 import pathlib
 import pandas as pd
 
-from biosignal_analysis.datamanager import manager
+from datamanager import manager
 
 def verbosePrint(str, verbose=True):
     if verbose:

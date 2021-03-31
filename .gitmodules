@@ -1,0 +1,6 @@
+[submodule "sources/Hardware"]
+	path = sources/Hardware
+	url = https://git.renater.fr/anonscm/git/pypanephy/Hardware.git
+[submodule "sources/datamanager"]
+	path = sources/datamanager
+	url = https://git.renater.fr/anonscm/git/pypanephy/datamanager.git

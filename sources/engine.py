@@ -7,7 +7,6 @@ from Hardware import MEAs
 from Hardware import recipients
 from Hardware import setups
 
-from biosignal_analysis.analyses import processing as signalprocessing
 import numpy as np
 import pandas as pd
 
@@ -174,7 +173,7 @@ class CorrelationDataframe:
             waveforms = processing.filter_channels(self.waveforms_raw, channels)
             ''' Apply digital filters '''
             self.parameters["filters"]["args"]["Fs"] = self.Fs_raw
-            filters = signalprocessing.generate_filter(self.parameters["filters"])
+            filters = processing.generate_filter(self.parameters["filters"])
             waveforms = processing.map_to_dict(filters.run, waveforms, progress_message='Filtering')
             ''' RMS filter '''
             if self.parameters["RMS"]["enable"]:

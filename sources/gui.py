@@ -221,7 +221,7 @@ if __name__ == "__main__":
     signature_label.grid(row=4, column=0, columnspan=3)
 
     ENGINE = engine.CorrelationDataframe()
-    ENGINE.parameters["environment"] = "tkinter"
+    ENGINE.autobake = False
 
     def message(text=""):
         if text:
@@ -499,8 +499,9 @@ if __name__ == "__main__":
             ENGINE.parameters["filters"]["args"]["lp"][0][1] = preproc_rawdata_filters_entry_LP_order_intvar.get()
 
     @assets.alertonfail
-    def export_parameters():
-        file_path = tkfd.asksaveasfilename(filetypes=[("JSON file", "*.json")])
+    def export_parameters(file_path=None):
+        if file_path is None:
+            file_path = tkfd.asksaveasfilename(filetypes=[("JSON file", "*.json")])
         if file_path:
             if not file_path.endswith(".json"):
                 file_path += ".json"
@@ -515,8 +516,9 @@ if __name__ == "__main__":
             colprint.printokg(msg)
 
     @assets.alertonfail
-    def import_parameters():
-        file_path = tkfd.askopenfilename(initialdir=".", filetypes=[("JSON file", "*.json")])
+    def import_parameters(file_path=None):
+        if file_path is None:
+            file_path = tkfd.askopenfilename(initialdir=".", filetypes=[("JSON file", "*.json")])
         if file_path:
             ENGINE.importParameters(file_path)
             import_params_from_engine()
@@ -537,30 +539,36 @@ if __name__ == "__main__":
         ''' Configure '''
         apply_params_to_engine()
         ''' Run '''
+        success = True
         if ENGINE.timestamps_raw:
             ENGINE.preprocessTimestamps()
             ENGINE.bakeWaveforms()
         ENGINE.preprocessWaveforms()
         if analyses_widgets["CORRELATION"]["checkbox_state"].get():
-            ENGINE.bakeCorrelation()
+            success &= ENGINE.bakeCorrelation()
         if analyses_widgets["TIMESHIFT"]["checkbox_state"].get():
-            ENGINE.bakeTimeshift()
+            success &= ENGINE.bakeTimeshift()
         if analyses_widgets["ORDER"]["checkbox_state"].get():
-            ENGINE.bakeOrder()
+            success &= ENGINE.bakeOrder()
         if analyses_widgets["ACTIVATIONORDER"]["checkbox_state"].get():
-            ENGINE.bakeActivationOrder()
+            success &= ENGINE.bakeActivationOrder()
         if analyses_widgets["CLUSTERING"]["checkbox_state"].get():
-            ENGINE.bakeClustering()
+            success &= ENGINE.bakeClustering()
         if analyses_widgets["ROLLINGCORRELATION"]["checkbox_state"].get():
-            ENGINE.bakeRollingCorrelation()
+            success &= ENGINE.bakeRollingCorrelation()
         if analyses_widgets["ROLLINGTIMESHIFT"]["checkbox_state"].get():
-            ENGINE.bakeRollingTimeshift()
+            success &= ENGINE.bakeRollingTimeshift()
         if analyses_widgets["ROLLINGORDER"]["checkbox_state"].get():
-            ENGINE.bakeRollingOrder()
+            success &= ENGINE.bakeRollingOrder()
         update_all_plot_status()
-        msg = "Successfully ran analysis"
-        messagebox.showinfo(title="Success", message=msg)
-        colprint.printokg(msg)
+        if success:
+            msg = "Successfully ran analysis"
+            messagebox.showinfo(title="Success", message=msg)
+            colprint.printokg(msg)
+        else:
+            msg = "Something went wrong, could not run analysis."
+            messagebox.showinfo(title="Failed", message=msg)
+            colprint.printerr(msg)
 
     """ Callbacks """
     filehandling_load_button["command"] = load_data
@@ -575,6 +583,7 @@ if __name__ == "__main__":
 
 
     """ Init gui """
+    import_parameters('defaults.json')
     import_params_from_engine()
     message()
     update_sourcedata_timerange()

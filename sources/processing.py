@@ -12,7 +12,6 @@ from matplotlib import pyplot as plt
 from collections import namedtuple
 import progressbar
 import itertools
-from biosignal_analysis.analyses import processing as signalprocessing
 
 def pbar(*args, **kwargs):
     """ Definition of a progressbar that can easily be overloaded """
@@ -670,6 +669,12 @@ def exclude_channels(data={}, filter=[]):
             data_out[k] = data[k]
     return data_out
 
+def resample(data, fs_origin, fs_destination):
+    ratio = fs_destination / fs_origin
+    N_origin = len(data)
+    N_destination = int(N_origin * ratio)
+    return signal.resample(data, N_destination)
+
 def resample_timestamps(timestamps, fs_origin, fs_destination):
     resampled_timestamps = {}
     for k in timestamps:
@@ -677,7 +682,7 @@ def resample_timestamps(timestamps, fs_origin, fs_destination):
     return resampled_timestamps
 
 def resample_waveforms(waveforms, fs_origin, fs_destination):
-    return map_to_dict(signalprocessing.resample, waveforms, fs_origin=fs_origin, fs_destination=fs_destination, progress_message="Resampling waveforms")
+    return map_to_dict(resample, waveforms, fs_origin=fs_origin, fs_destination=fs_destination, progress_message="Resampling waveforms")
 
 def crop_waveforms(waveforms, bounds_samples):
     i0 = bounds_samples[0]
@@ -730,6 +735,124 @@ def relabel_data(data, rule):
     #         output[rule[k]] = data[k]
     #     else:
     #         print(f"Could not find key {k} in rule")
+
+""" FILTERING """
+
+class BPfilters:
+    def __init__(self, lp=[], hp=[], notch=[], filtertype='butterworth', Fs=0.5):
+        ''' lp = [(Fc0 , order0 ), ..., (Fcn , ordern )] '''
+        ''' hp = [(Fc0', order0'), ..., (Fcn', ordern')] '''
+        ''' notch = [(Fc0', Q0'), ..., (Fcn', Qn')] '''
+        ''' filtertype = butterworth, bessel '''
+        self.Fs = Fs
+        self.filters = {}
+        self.filters['lp'] = lp
+        self.filters['hp'] = hp
+        self.filters['notch'] = notch
+
+        self.filtertypes = {}
+        self.filtertypes['butterworth'] = signal.butter
+        self.filtertypes['butter']      = signal.butter
+        self.filtertypes['bessel']      = signal.bessel
+        try:
+            self.filtertype = self.filtertypes[filtertype.lower()]
+        except:
+            print("Warning : unknown filter type {}, defaulted to Butterworth.")
+            self.filtertype = signal.butter
+    def run(self, sig):
+        filtered = 1. * np.asarray(sig)
+        for hp in self.filters['hp']:
+            (Fc, order) = hp
+            sos = self.filtertype(N=order, Wn=Fc, btype='hp', fs=self.Fs, output='sos')
+            filtered = signal.sosfiltfilt(sos, filtered)
+        for lp in self.filters['lp']:
+            (Fc, order) = lp
+            sos = self.filtertype(N=order, Wn=Fc, btype='lp', fs=self.Fs, output='sos')
+            filtered = signal.sosfiltfilt(sos, filtered)
+        for notch in self.filters['notch']:
+            (Fc, Q) = notch
+            b, a = signal.iirnotch(w0=Fc, Q=Q, fs=self.Fs)
+            filtered = signal.filtfilt(b, a, filtered)
+        return filtered
+    def getConfig(self):
+        return self.filters
+    def getConfigTex(self):
+        return ""
+
+class DWT:
+    def __init__(self, levels, wlttype='haar'):
+        self.coeffs = {}
+        self.coeffs['db4']     = {'lp' : [-0.0105974018, 0.0328830117, 0.0308413818, -0.1870348117, -0.0279837694, 0.6308807679, 0.7148465706, 0.2303778133], 'hp' : [-0.2303778133, 0.7148465706, -0.6308807679, -0.0279837694, 0.1870348117, 0.0308413818, -0.0328830117, -0.0105974018]}
+        self.coeffs['haar']    = {'lp' : [0.7071067812, 0.7071067812, 0., 0., 0., 0., 0., 0.], 'hp' : [-0.7071067812, 0.7071067812, 0., 0., 0., 0., 0., 0.]}
+        self.coeffs['bior1.3'] = {'lp' : [-0.088388347648318447, 0.088388347648318447, 0.70710678118654757, 0.70710678118654757, 0.088388347648318447, -0.088388347648318447], 'hp' : [0., 0., -0.70710678118654757, 0.70710678118654757, 0., 0.]}
+        self.coeffs['sym2']    = {'lp' : [-0.12940952255092145, 0.22414386804185735, 0.83651630373746899, 0.48296291314469025], 'hp' : [-0.48296291314469025, 0.83651630373746899, -0.22414386804185735, -0.12940952255092145]}
+        self.coeffs['coif1.1'] = {'lp' : [-0.01565572813546454, 0.072732619512853897, .38486484686420286, .85257202021225542, .33789766245780922, 0.072732619512853897], 'hp' : [0.072732619512853897, 0.33789766245780922, -0.85257202021225542, 0.38486484686420286, 0.072732619512853897, -0.01565572813546454]}
+        self.wlt    = wlttype
+        self.levels = levels
+    def run(self, sig):
+        filtered = sig
+        N = len(sig)
+        coeffs_hp = [c for c in self.coeffs[self.wlt]['lp']]
+        coeffs_lp = [c for c in self.coeffs[self.wlt]['hp']]
+        for l in range(self.levels):
+            hipass = signal.convolve(filtered, coeffs_hp, mode="full", method='fft')
+            lopass = signal.convolve(filtered, coeffs_lp, mode="full", method='fft')
+            hipass *= (1./np.sqrt(2)) # Normalization
+            lopass *= (1./np.sqrt(2)) # Normalization
+            coeffs_hp = [item for item in coeffs_hp for i in range(2)] # Duplicate coeff elements
+            coeffs_lp = [item for item in coeffs_lp for i in range(2)] # Duplicate coeff elements
+            filtered = lopass
+        filtered = lopass
+        return filtered
+
+class CWT:
+    def __init__(self, levels, wlttype='mexh'):
+        self.wlt    = wlttype
+        self.levels = levels
+    def run(self, sig):
+        wavelet_output = pywt.cwt(sig, self.levels, self.wlt)
+        return wavelet_output[0][0]
+
+class WLTdenoise:
+    def __init__(self, threshold=0.04, wlttype="mexh", minlevel=None, maxlevel=None):
+        self.wlt = wlttype
+        self.threshold = threshold
+        self.minlevel = minlevel
+        self.maxlevel = maxlevel
+    def run(self, sig):
+        print("    Running wavelet denoise")
+        w = pywt.Wavelet(self.wlt)
+        if self.maxlevel is None:
+            self.maxlevel = pywt.dwt_max_level(len(sig), w.dec_len)
+            print('      Max decomposition level set to {}'.format(self.maxlevel))
+        if self.minlevel is None:
+            self.minlevel = 0
+        coeffs   = pywt.wavedec(sig, self.wlt, level=self.maxlevel)
+        for i in range(0, self.minlevel):
+            coeffs[i] = pywt.threshold(coeffs[i], np.inf)
+        for i in range(self.minlevel, len(coeffs)):
+            print('      Decomposition level {} range : {:.3f} - {:.3f}'.format(i, min(coeffs[i]), max(coeffs[i])))
+            coeffs[i] = pywt.threshold(coeffs[i], self.threshold * max(coeffs[i]))
+        print('    Filtered coefficients :')
+        for i,c in enumerate(coeffs):
+            print('      #{} : {:.3f} - {:.3f}'.format(i, min(c), max(c)))
+        datarec = pywt.waverec(coeffs, self.wlt)
+        return datarec
+
+def generate_filter(filter_description):
+    family = filter_description['family']
+    if type(family) == str:
+        if family in ['BP', 'bp', 'band-bass', 'BPfilters']:
+            family = BPfilters
+        if family in ['dwt', 'DWT']:
+            family = DWT
+        if family in ['cwt', 'CWT']:
+            family = CWT
+        if family in ['wltdenoise', 'WLTdenoise', 'wlt', 'WLT']:
+            family = WLTdenoise
+
+    args = filter_description['args']
+    return family(**args)
 
 if __name__ == "__main__":
     import time
