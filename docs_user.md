@@ -33,6 +33,4 @@ All should be set
 
 ### Bonus round : updating
 
-**FIXME**
-
 If you have git, you can run `git pull --recurse-submodules` to update the software (or run `update.cmd`)
