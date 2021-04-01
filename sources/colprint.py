@@ -1,9 +1,9 @@
-# import colorama
-# colorama.init()
-import os
-if os.name == 'nt': # Init ANSI escape sequences in Windows cmd
-    from ctypes import windll
-    windll.kernel32.SetConsoleMode(windll.kernel32.GetStdHandle(-11), 0x0007)
+import colorama
+colorama.init()
+# import os
+# if os.name == 'nt': # Init ANSI escape sequences in Windows cmd
+#     from ctypes import windll
+    # windll.kernel32.SetConsoleMode(windll.kernel32.GetStdHandle(-11), 0x0007)
 
 class bcolors:
     HEADER = '\033[95m'
