@@ -1,4 +1,4 @@
-# Devnotes SyncThePynk
+# Devnotes SyncOrSwim
 
 ## Etat transfert de compétences
 
@@ -12,7 +12,13 @@
 * [X] Mettre en place le versioning pour la première version déployée
 * [ ] Compléter les exports
 * [ ] FIXME : issue with autobaking and the gui : if an analysis is run and prompts autobaking (meaning a dependency is not ticked), re-running analyses doesn't recurse, meaning that the engine utilizes pre-computed results that will not get updated : if a parameter has changed inbetween, it will not be taken into account. Possible fixes : add a --recurse flag to analyses ? disable autobaking with gui ? (which would defeat the purpose because it was specifically added to be more user-friendly ...) Reset processed data before running analysis ?
-* [ ] TODO : replace success/failure routines returning `True`/`False` values with exception handling
+* [ ] replace success/failure routines returning `True`/`False` values with exception handling
+* [ ] switch from setup using python + pip to setup using python only
+* [ ] re-use colorama
+* [ ] Changer la couleur des animations (correlation matrix)
+* [ ] Plot rolling timeshit spatial ne marche pas ?
+* [ ] Isochrones ?
+* [ ] Enlever les infos de temps sur bar plot
 
 ## Etat GUI
 

@@ -12,7 +12,7 @@ from tkinter import simpledialog as tksd
 from version import __version__, __version_info__
 
 if __name__ == "__main__":
-    WINDOW_TITLE = "SyncThePynk"
+    WINDOW_TITLE = "SyncOrSwim"
     VERSION = __version__
 
     COLORCODE_ERROR    = "red"
