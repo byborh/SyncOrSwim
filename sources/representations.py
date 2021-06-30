@@ -14,6 +14,8 @@ from player import Player
 import progressbar
 
 EMBED_LIMIT_MB = 100
+CMAP_CORRELATION_MATRIX = "jet"
+CMAP_TIMESHIFT_MATRIX = "jet"
 
 def _unitmgr(Fs, unit="s", magnitude="m"):
     prefixes = {}
@@ -51,7 +53,7 @@ def _unitmgr(Fs, unit="s", magnitude="m"):
 
 
 def drawCorrelation(correlation_matrix, title='', bounds=(-1.0, 1.0)):
-    cmap = "jet"
+    cmap = CMAP_CORRELATION_MATRIX
     h = sb.clustermap(correlation_matrix, cmap = cmap, linewidths = 0.1, figsize=(6,6), method='average', vmin=bounds[0], vmax=bounds[1])
     if title:
         h.fig.suptitle(title)
@@ -201,7 +203,7 @@ def drawTimeshiftSpatial(timeshift, layout, ax=None, Fs=1.):
     channels = timeshift.columns
     ax.set_title("Timeshift (ms)")
     # cmap = mpl.cm.get_cmap('YlGnBu')
-    cmap = mpl.cm.get_cmap('jet')
+    cmap = mpl.cm.get_cmap(CMAP_TIMESHIFT_MATRIX)
     for ch0 in channels:
         for ch1 in channels:
             if (ch0 != ch1) and (timeshift[ch0][ch1] > 0):
@@ -285,6 +287,7 @@ def drawOrderSpatial(order, layout, ax=None, Fs=1., speed=False):
     return ax.get_figure()
 
 def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., reference_channel=None, speed=False):
+    print("Drawing isochrones ... (may take a while)")
     if ax is None:
         h  = plt.figure()
         ax = h.add_subplot(111)
@@ -333,7 +336,7 @@ def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., referenc
     z = []
     bounds_x = (np.nan, np.nan)
     bounds_y = (np.nan, np.nan)
-    for e in layout.electrodes:
+    for i,e in enumerate(layout.electrodes):
         if not(e.draw):
             continue
         ch = e.label
@@ -345,6 +348,7 @@ def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., referenc
             y.append(e.position.y)
             z.append(zvalue)
     if len(x) > 2:
+        print("  Interpolating ...")
         xi = np.linspace(*bounds_x, 10000)
         yi = np.linspace(*bounds_y, 10000)
         try:
@@ -378,7 +382,7 @@ def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., referenc
         ax.set_xlim([xcenter - delta_x*margin, xcenter + delta_x*margin])
     else:
         ax.set_ylim([ycenter - delta_y*margin, ycenter + delta_y*margin])
-
+    print("  All done.")
     return h
 
 def drawOrderBargraph(order_stats, timeinfo=False, Fs=None):
@@ -520,7 +524,7 @@ def drawCorrelationSpatial(correlation_data, layout, threshold=0.5, ax=None, lab
         h  = plt.figure()
         ax = h.add_subplot(111)
     # cmap = mpl.cm.get_cmap('YlGnBu')
-    cmap = mpl.cm.get_cmap('jet')
+    cmap = mpl.cm.get_cmap(CMAP_CORRELATION_MATRIX)
     ax.set_title("All correlations > {}".format(threshold))
 
     for label0 in correlation_data.columns:
@@ -623,7 +627,7 @@ def animate_rollingCorrelation(rolling_correlation, waveforms, Fs=1., autorun=Tr
         cursor1.set_data([interval[1]/Fs]*2, ylim)
         ''' heatmap '''
         data = rolling_correlation[i].matrix
-        sb.heatmap(data, cmap ="YlGnBu", vmin=-1.0, vmax=1.0, ax=a0, cbar=False)
+        sb.heatmap(data, cmap=CMAP_CORRELATION_MATRIX, vmin=-1.0, vmax=1.0, ax=a0, cbar=False)
         ''' waveforms '''
         _draw_waveforms_region_stacked(waveforms, interval, Fs, a1)
         a1.set_ylim((wmin, wmax))
@@ -659,7 +663,7 @@ def animate_rollingTimeshift(rolling_timeshift, waveforms, Fs=1., autorun=True, 
     def drawFrame(i,rolling_timeshift):
         i = i % len(rolling_timeshift)
         data = rolling_timeshift[i].matrix
-        sb.heatmap(data, cmap ="jet", vmin=-100.0, vmax=100.0, ax=a0, cbar=False)
+        sb.heatmap(data, cmap=CMAP_TIMESHIFT_MATRIX, vmin=-100.0, vmax=100.0, ax=a0, cbar=False)
         for j,k in enumerate(waveforms):
             interval = rolling_timeshift[i].interval
             waveform = 1 * np.asarray(waveforms[k])[interval[0]:interval[1]]

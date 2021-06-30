@@ -1,6 +1,7 @@
 __pycache__/
 *.py[cod]
 ~$*.docx
-dev*.cmd
+dev/*
 venv/*
 wheels/*
+SyncOrSwim_online_installer_amd64/*

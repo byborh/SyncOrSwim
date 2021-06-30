@@ -2,7 +2,7 @@
 
 ## Installation
 
-This might look like dev docs, but if you're a user, at some point you will need to install the software and the right environment to run it ...
+This might look like dev docs, but if you're a user, at some point you will need to install 1) the software and 2) the right environment to run it ...
 
 ### If you don't already have the SyncOrSwim archive
 
