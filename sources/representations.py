@@ -178,21 +178,26 @@ def drawClustersSpatial(correlation_data, cluster_data, layout, ax=None):
     if ax is None:
         h  = plt.figure()
         ax = h.add_subplot(111)
-    ax.set_title("Identified clusters (unpolished)")
-    cmap = mpl.cm.get_cmap('YlGnBu')
-    for cluster in cluster_data.clusters:
-        for label0 in cluster:
-            for label1 in cluster:
-                if label0 != label1:
-                    pos0 = layout.getElectrode(label0).position
-                    pos1 = layout.getElectrode(label1).position
-                    color = cmap(correlation_data.matrix[label0][label1])
-                    ax.plot([pos0.x, pos1.x],[pos0.y, pos1.y], color=color)
+    ax.set_title("Identified clusters")
+    colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
+    clusters_started = set()
     for e in layout.electrodes:
         if not(e.draw):
             continue
-        ax.plot(e.position.x, e.position.y, 'o', color='black', ms=1, alpha=1.0)
+        for i,c in enumerate(cluster_data.clusters):
+            if e.label in c:
+                color = colors[i%len(colors)]
+                break
+        else:
+            # print(f"{e} not in {c}")
+            color = "grey"
+            i = -1
+        if i not in clusters_started:
+            ax.plot([], [], 'o', color=color, ms=10, alpha=0.5, label=f"Cluster #{i}") # Dummy legend for first element of cluster only
+        clusters_started.add(i)
+        ax.plot(e.position.x, e.position.y, 'o', color=color, ms=10, alpha=0.5)
         # ax.text(e.position.x, e.position.y, str(e.label), color='black', horizontalalignment='center', verticalalignment='center')
+    ax.legend()
     ax.axis('equal')
     return h
 
@@ -544,6 +549,11 @@ def drawCorrelationSpatial(correlation_data, layout, threshold=0.5, ax=None, lab
         ax.plot(e.position.x, e.position.y, 'o', color='black', ms=1, alpha=0.0)
         if labels:
             ax.text(e.position.x, e.position.y, str(e.label), color='black', horizontalalignment='center', verticalalignment='center', zorder=101)
+    # Dummies for legend
+    for x in np.linspace(1,-1,21):
+        if x >= threshold:
+          ax.plot([],[],color=cmap(x), label=f"{x}")
+    ax.legend()
     ax.axis('equal')
 
 def _draw_waveforms_region_stacked(waveforms, interval, Fs, ax, normalize=False):

@@ -25,6 +25,8 @@ PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"] =  8
 PLOTS["ROLLINGORDERSPATIAL"]           =  9
 PLOTS["ROLLINGORDERBAR"]               = 10
 PLOTS["ROLLINGORDERPIE"]               = 11
+PLOTS["CLUSTERSSPATIAL"]               = 12
+PLOTS["CORRELATIONSPATIAL"]            = 13
 
 EXPORTS = {}
 EXPORTS["CORRELATIONMATRIX"]      = 0
@@ -559,14 +561,20 @@ class CorrelationDataframe:
             representations.drawCorrelation(self.correlation_data.matrix, title='Correlation matrix')
         if self._isPlotReady(PLOTS["GRANGERCAUSALITYMATRIX"]) and which in [-1,1]:
             representations.drawCorrelation(self.granger_data.matrix, title='Granger causality matrix', bounds=(None,None))
-        if which in [-1,0,1]:
+        if self._isPlotReady(PLOTS["CORRELATIONSPATIAL"]) and which in [-1,2]:
+            MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
+            representations.drawCorrelationSpatial(self.correlation_data.matrix, MEA_layout)
+        if which in [-1,0,1,2]:
             plt.show(block=False)
     def drawClustering(self, which=-1):
         if self._isPlotReady(PLOTS["CLUSTEREDEVENTS"]) and which in [-1,0]:
             representations.drawClusteredEvents(self.timestamps, self.linkage)
         if self._isPlotReady(PLOTS["DENDROGRAM"]) and which in [-1,1]:
             representations.drawDendrogram(self.correlation_data.matrix, self.linkage)
-        if which in [-1,0,1]:
+        if self._isPlotReady(PLOTS["CLUSTERSSPATIAL"]) and which in [-1,2]:
+            MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
+            representations.drawClustersSpatial(self.correlation_data, self.clustering_data, MEA_layout)
+        if which in [-1,0,1,2]:
             plt.show(block=False)
     def drawRollingCorrelation(self, which=-1):
         if self._isPlotReady(PLOTS["ROLLINGCORRELATION"]) and which in [-1,0]:
@@ -625,6 +633,8 @@ class CorrelationDataframe:
             return bool(self.timestamps and self.clustering_data)
         if which == PLOTS["GRANGERCAUSALITYMATRIX"]:
             return bool(self.granger_data)
+        if which == PLOTS["CORRELATIONSPATIAL"]:
+            return bool(self.correlation_data)
         if which == PLOTS["DENDROGRAM"]:
             return bool(self.correlation_data and self.clustering_data)
         if which == PLOTS["TIMESHIFT"]:
@@ -644,6 +654,8 @@ class CorrelationDataframe:
             return bool(self.order_stats)
         if which == PLOTS["ROLLINGORDERPIE"]:
             return bool(self.order_stats)
+        if which == PLOTS["CLUSTERSSPATIAL"]:
+            return bool(self.correlation_data and self.clustering_data)
         return False
     def _isExportReady(self, which):
         if which == EXPORTS["CORRELATIONMATRIX"]:

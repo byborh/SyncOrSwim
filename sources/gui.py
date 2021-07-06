@@ -193,14 +193,16 @@ if __name__ == "__main__":
     analyses_labelframe = ttk.Labelframe(root, text="Analyses")
     analyses_labelframe.grid(row=2, column=0, columnspan=2, **LABELFRAMES_GRID_PARAMS)
 
-    add_analysis("CORRELATION"       , parent=analyses_labelframe, column=0, row=0, text="Correlation")
-    add_analysis("TIMESHIFT"         , parent=analyses_labelframe, column=0, row=1, text="Timeshift")
-    add_analysis("ORDER"             , parent=analyses_labelframe, column=0, row=2, text="Order")
-    add_analysis("ACTIVATIONORDER"   , parent=analyses_labelframe, column=0, row=3, text="Activation order")
-    add_analysis("CLUSTERING"        , parent=analyses_labelframe, column=0, row=4, text="Clustering")
-    add_analysis("ROLLINGCORRELATION", parent=analyses_labelframe, column=1, row=0, text="Rolling correlation")
-    add_analysis("ROLLINGTIMESHIFT"  , parent=analyses_labelframe, column=1, row=1, text="Rolling timeshift")
-    add_analysis("ROLLINGORDER"      , parent=analyses_labelframe, column=1, row=2, text="Rolling order")
+    col = 0 ; row = 0
+    add_analysis("CORRELATION"       , parent=analyses_labelframe, column=col, row=row, text="Correlation")        ; row += 1
+    #add_analysis("GRANGER"           , parent=analyses_labelframe, column=col, row=row, text="Granger causality")  ; row += 1
+    add_analysis("TIMESHIFT"         , parent=analyses_labelframe, column=col, row=row, text="Timeshift")          ; row += 1
+    add_analysis("ORDER"             , parent=analyses_labelframe, column=col, row=row, text="Order")              ; row += 1
+    add_analysis("ACTIVATIONORDER"   , parent=analyses_labelframe, column=col, row=row, text="Activation order")   ; row += 1
+    add_analysis("CLUSTERING"        , parent=analyses_labelframe, column=col, row=row, text="Clustering")         ; col += 1; row=0
+    add_analysis("ROLLINGCORRELATION", parent=analyses_labelframe, column=col, row=row, text="Rolling correlation"); row += 1
+    add_analysis("ROLLINGTIMESHIFT"  , parent=analyses_labelframe, column=col, row=row, text="Rolling timeshift")  ; row += 1
+    add_analysis("ROLLINGORDER"      , parent=analyses_labelframe, column=col, row=row, text="Rolling order")      ; row += 1
 
     """ Analysis controls """
     analysisctrl_labelframe = ttk.Labelframe(root, text="Control")
@@ -419,6 +421,7 @@ if __name__ == "__main__":
 
     add_plot_entry(analyses_widgets["CORRELATION"]["show_button"]       , "Correlation matrix"                   , lambda: ENGINE.drawCorrelation(0)       , engine.PLOTS["CORRELATIONMATRIX"     ])
     add_plot_entry(analyses_widgets["CORRELATION"]["show_button"]       , "Granger causality matrix"             , lambda: ENGINE.drawCorrelation(1)       , engine.PLOTS["GRANGERCAUSALITYMATRIX"])
+    add_plot_entry(analyses_widgets["CORRELATION"]["show_button"]       , "Correlation (spatial)"                , lambda: ENGINE.drawCorrelation(2)       , engine.PLOTS["CORRELATIONSPATIAL"])
     add_plot_entry(analyses_widgets["TIMESHIFT"]["show_button"]         , "Timeshift"                            , lambda: ENGINE.drawTimeshift(0)         , engine.PLOTS["TIMESHIFT"             ])
     add_plot_entry(analyses_widgets["ROLLINGCORRELATION"]["show_button"], "Rolling correlation (animation)"      , lambda: ENGINE.drawRollingCorrelation(0), engine.PLOTS["ROLLINGCORRELATION"])
     add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling timeshift (animation)"        , lambda: ENGINE.drawRollingTimeshift(0)  , engine.PLOTS["ROLLINGTIMESHIFT"])
@@ -429,6 +432,7 @@ if __name__ == "__main__":
     add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Rolling order spatial (animation)"    , lambda: ENGINE.drawRollingOrderStats(2) , engine.PLOTS["ROLLINGORDERSPATIAL"])
     add_plot_entry(analyses_widgets["CLUSTERING"]["show_button"]        , "Clustered events"                     , lambda: ENGINE.drawClustering(0)        , engine.PLOTS["CLUSTEREDEVENTS"       ])
     add_plot_entry(analyses_widgets["CLUSTERING"]["show_button"]        , "Dendrogram"                           , lambda: ENGINE.drawClustering(1)        , engine.PLOTS["DENDROGRAM"            ])
+    add_plot_entry(analyses_widgets["CLUSTERING"]["show_button"]        , "Clusters (spatial)"                   , lambda: ENGINE.drawClustering(2)        , engine.PLOTS["CLUSTERSSPATIAL"       ])
 
     add_export_entry(analyses_widgets["CORRELATION"]["export_button"]       , "Correlation matrix"      , lambda destination: ENGINE.exportCorrelation(which=0, destination=destination)       , engine.EXPORTS["CORRELATIONMATRIX"     ])
     add_export_entry(analyses_widgets["CORRELATION"]["export_button"]       , "Granger causality matrix", lambda destination: ENGINE.exportCorrelation(which=1, destination=destination)       , engine.EXPORTS["GRANGERCAUSALITYMATRIX"])
@@ -439,7 +443,7 @@ if __name__ == "__main__":
     add_export_entry(analyses_widgets["ROLLINGORDER"]["export_button"]      , "Rolling order"           , lambda destination: ENGINE.exportRollingOrder(which=0, destination=destination)      , engine.EXPORTS["ROLLINGORDER"])
     add_export_entry(analyses_widgets["CLUSTERING"]["export_button"]        , "Clustered events"        , lambda destination: ENGINE.exportClustering(which=0, destination=destination)        , engine.EXPORTS["CLUSTERING"])
 
-    add_local_export_entry(analyses_widgets["CLUSTERING"]["export_button"]  , "To channel selection"    , export_dendrogram_to_electrode_selection                                             , engine.EXPORTS["CLUSTERING"])
+    add_local_export_entry(analyses_widgets["CLUSTERING"]["export_button"]  , "To channel selection ...", export_dendrogram_to_electrode_selection                                             , engine.EXPORTS["CLUSTERING"])
 
     # """ Create all export menu entries """
     # def add_export_entry(optionmenu, text, export_callback, status_check_reference):
@@ -546,6 +550,8 @@ if __name__ == "__main__":
         ENGINE.preprocessWaveforms()
         if analyses_widgets["CORRELATION"]["checkbox_state"].get():
             success &= ENGINE.bakeCorrelation()
+        #if analyses_widgets["GRANGER"]["checkbox_state"].get():
+            #success &= ENGINE.bakeGranger()
         if analyses_widgets["TIMESHIFT"]["checkbox_state"].get():
             success &= ENGINE.bakeTimeshift()
         if analyses_widgets["ORDER"]["checkbox_state"].get():
