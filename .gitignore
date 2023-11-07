@@ -4,4 +4,5 @@ __pycache__/
 dev/*
 venv/*
 wheels/*
+tests/*
 SyncOrSwim_online_installer_amd64/*

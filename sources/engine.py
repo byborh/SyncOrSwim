@@ -588,19 +588,72 @@ class CorrelationDataframe:
         if self._isPlotReady(PLOTS["ROLLINGTIMESHIFTSPATIAL"]) and which in[-1,1]:
             representations.animate_rollingTimeshiftSpatial(self.rolling_timeshift_data, MEA_layout, self.waveforms, Fs=self.Fs)
         if self._isPlotReady(PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"]) and which in[-1,2]:
-            representations.drawRollingTimeshiftSpatial(self.rolling_timeshift_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"])
-        if which in [-1,0,1,2]:
+            representations.drawRollingTimeshiftSpatial(
+                self.rolling_timeshift_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
+                contour=True, contourlabels=True, contourmap=None,
+                fill=False, fillmap=None)
+        if self._isPlotReady(PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"]) and which in[-1,3]:
+            representations.drawRollingTimeshiftSpatial(
+                self.rolling_timeshift_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
+                contour=True, contourlabels=False, contourmap="rainbow",
+                fill=False, fillmap="rainbow")
+        if self._isPlotReady(PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"]) and which in[-1,4]:
+            representations.drawRollingTimeshiftSpatial(
+                self.rolling_timeshift_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
+                contour=True, contourlabels=False, contourmap=None,
+                fill=True, fillmap="rainbow")
+        if self._isPlotReady(PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"]) and which in[-1,5]:
+            representations.drawRollingTimeshiftSpatial(
+                self.rolling_timeshift_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
+                contour=False, contourlabels=False, contourmap=None,
+                fill=True, fillmap="rainbow")
+        if which in [-1,0,1,2,3,4,5]:
             plt.show(block=False)
     def drawRollingOrderStats(self, which=-1):
         MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
+        # BAR GRAPHS
         if self._isPlotReady(PLOTS["ROLLINGORDERBAR"]) and which in [-1,0]:
             representations.drawOrderBargraph(self.order_stats, timeinfo=True, Fs=self.parameters["processing_Fs"])
-        if self._isPlotReady(PLOTS["ROLLINGORDERPIE"]) and which in [-1,1]:
+        if self._isPlotReady(PLOTS["ROLLINGORDERBAR"]) and which in [-1,1]:
+            representations.drawOrderBargraph(
+                self.order_stats, timeinfo=True, Fs=self.parameters["processing_Fs"],
+                highlight_ranks=1
+            )
+        if self._isPlotReady(PLOTS["ROLLINGORDERBAR"]) and which in [-1,2]:
+            representations.drawOrderBargraph(
+                self.order_stats, timeinfo=True, Fs=self.parameters["processing_Fs"],
+                highlight_ranks=2
+            )
+        if self._isPlotReady(PLOTS["ROLLINGORDERBAR"]) and which in [-1,3]:
+            representations.drawOrderBargraph(
+                self.order_stats, timeinfo=True, Fs=self.parameters["processing_Fs"],
+                highlight_ranks=3
+            )
+        # PIE GRAPHS
+        if self._isPlotReady(PLOTS["ROLLINGORDERPIE"]) and which in [-1,4]:
             representations.drawOrderPie(self.order_stats, MEA_layout, timeinfo=False, Fs=self.parameters["processing_Fs"])
-        if self._isPlotReady(PLOTS["ROLLINGORDERSPATIAL"]) and which in [-1,2]:
+        if self._isPlotReady(PLOTS["ROLLINGORDERPIE"]) and which in [-1,5]:
+            representations.drawOrderPie(
+                self.order_stats, MEA_layout, timeinfo=False, Fs=self.parameters["processing_Fs"],
+                highlight_ranks=1
+            )
+        if self._isPlotReady(PLOTS["ROLLINGORDERPIE"]) and which in [-1,6]:
+            representations.drawOrderPie(
+                self.order_stats, MEA_layout, timeinfo=False, Fs=self.parameters["processing_Fs"],
+                highlight_ranks=2
+            )
+        if self._isPlotReady(PLOTS["ROLLINGORDERPIE"]) and which in [-1,7]:
+            representations.drawOrderPie(
+                self.order_stats, MEA_layout, timeinfo=False, Fs=self.parameters["processing_Fs"],
+                highlight_ranks=3
+            )
+        # SPATIAL
+        if self._isPlotReady(PLOTS["ROLLINGORDERSPATIAL"]) and which in [-1,8]:
             representations.animate_rollingOrderSpatial(self.rolling_order_data, self.rolling_timeshift_data, MEA_layout, self.waveforms, Fs=self.Fs, speed=False, env=self.parameters['environment'])
-        if which in [-1,0,1,2]:
+        # ---
+        if which in [-1,0,1,2,3,4,5,6,7,8]:
             plt.show(block=False)
+
     def drawTimeshift(self, which=-1):
         if self._isPlotReady(PLOTS["TIMESHIFT"]) and which in [-1,0]:
             MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]

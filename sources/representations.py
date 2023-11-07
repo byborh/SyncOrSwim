@@ -16,6 +16,7 @@ import progressbar
 EMBED_LIMIT_MB = 100
 CMAP_CORRELATION_MATRIX = "jet"
 CMAP_TIMESHIFT_MATRIX = "jet"
+CMAP_ISOCHRONES = "rainbow"
 
 def _unitmgr(Fs, unit="s", magnitude="m"):
     prefixes = {}
@@ -208,7 +209,7 @@ def drawTimeshiftSpatial(timeshift, layout, ax=None, Fs=1.):
     channels = timeshift.columns
     ax.set_title("Timeshift (ms)")
     # cmap = mpl.cm.get_cmap('YlGnBu')
-    cmap = mpl.cm.get_cmap(CMAP_TIMESHIFT_MATRIX)
+    cmap = mpl.colormaps.get_cmap(CMAP_TIMESHIFT_MATRIX)
     for ch0 in channels:
         for ch1 in channels:
             if (ch0 != ch1) and (timeshift[ch0][ch1] > 0):
@@ -239,7 +240,7 @@ def drawOrderSpatial(order, layout, ax=None, Fs=1., speed=False):
     values = [x for x in order if not(np.isnan(x))]
     title = "(Order) +/- dt [ms]" if not(speed) else "(Order) +/- speed [µm/s]"
     ax.set_title(title)
-    cmap = mpl.cm.get_cmap('copper')
+    cmap = mpl.colormaps.get_cmap('copper')
     for i,ch in enumerate(channels):
         if i==0:
             pos0 = layout.getElectrode(ch).position
@@ -291,11 +292,15 @@ def drawOrderSpatial(order, layout, ax=None, Fs=1., speed=False):
     ax.axis('equal')
     return ax.get_figure()
 
-def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., reference_channel=None, speed=False):
+def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., reference_channel=None, speed=False,
+                                contour=True, contourlabels=True, contourmap=None,
+                                fill=False, fillmap=CMAP_ISOCHRONES):
     print("Drawing isochrones ... (may take a while)")
     if ax is None:
         h  = plt.figure()
         ax = h.add_subplot(111)
+    else:
+        h = get_ax.figure()
     channels = timeshift_data[0].matrix.columns
     title = "Isochrones"
     ax.set_title(title)
@@ -305,10 +310,10 @@ def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., referenc
     df_values = pd.DataFrame(values)
     dt_mean = df_values.mean(axis=1, skipna=True)
     dt_std  = df_values.std(axis=1, skipna=True)
-    ''' Draw isochrones '''
-    series_dt    = dt_mean
-    series_speed = dt_mean*0
-    channels = series_dt.index
+    series_dt    = dt_mean     # Measure time offset
+    series_speed = dt_mean*0   # Calculated propagation speed (preallocation)
+    channels = series_dt.index # List of channels
+    # Calculate propagation speed
     for i,ch in enumerate(channels):
         if i==0:
             pos0 = layout.getElectrode(ch).position
@@ -329,13 +334,16 @@ def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., referenc
         # ax.text(*pos1._to_tuple(), f"({i+1})", ha='center', va='bottom', weight=weight, color=color)
         # dt_or_speed = dt_ms if not(speed) else distance_um
         # ax.text(*pos1._to_tuple(), f"{dt_or_speed:+2.1f}", ha='center', va='top', weight=weight, size='smaller', color=color)
+
+    ''' Draw isochrones '''
+    # Draw electrodes
     for e in layout.electrodes:
         if not(e.draw):
             continue
         fillstyle = 'full' if e.label in channels else 'none'
         ax.plot(e.position.x, e.position.y, marker=e.shape, color="black", ms=5, alpha=1.0, fillstyle=fillstyle)
         # ax.text(e.position.x, e.position.y, str(e.label), color='black', horizontalalignment='center', verticalalignment='center')
-    ''' Contour '''
+    # Draw contour (isochrones)
     x = []
     y = []
     z = []
@@ -357,13 +365,29 @@ def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., referenc
         xi = np.linspace(*bounds_x, 10000)
         yi = np.linspace(*bounds_y, 10000)
         try:
+            # Interpolation
             triang = tri.Triangulation(x, y)
             interpolator = tri.LinearTriInterpolator(triang, z)
             Xi, Yi = np.meshgrid(xi, yi)
             zi = interpolator(Xi, Yi)
-            # contour = ax.contour(xi,yi,zi, cmap='Greys_r', alpha=1.0)
-            contour = ax.contour(xi,yi,zi, colors='black')
-            ax.clabel(contour, inline=True, fontsize=10, fmt="%1.0f ms", inline_spacing=25)
+            # Draw contour
+            # Params :
+                # contour (bool) ; contourlabels (bool) ; contourmap (None/str)
+                # fill (bool), fillmap (str)
+            if fill:
+                fillparams = {"cmap" : fillmap, "alpha":0.75}
+                contourf = ax.contourf(xi,yi,zi, **fillparams)
+            if contour:
+                contourparams = {"colors" : "black"} if contourmap is None else {"cmap" : contourmap}
+                contourc = ax.contour(xi,yi,zi, **contourparams)
+                if contourlabels :
+                    ax.clabel(contourc, inline=True, fontsize=10, fmt="%1.0f ms", inline_spacing=25)
+            if fill and fillmap:
+                cbar = h.colorbar(contourf, ax=ax)
+                cbar.ax.set_ylabel('[ms]', rotation=270)
+            elif contour and contourmap:
+                cbar = h.colorbar(contourc, ax=ax)
+                cbar.ax.set_ylabel('[ms]', rotation=270)
         except:
             pass
             # print("Triangulation or interpolation error")
@@ -390,14 +414,22 @@ def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., referenc
     print("  All done.")
     return h
 
-def drawOrderBargraph(order_stats, timeinfo=False, Fs=None):
+def drawOrderBargraph(order_stats, timeinfo=False, Fs=None, highlight_ranks=0):
     N = len(order_stats.percentage.columns)
     fig_width = 0.7 * N
     fig_width = 6.4 if fig_width < 6.4 else fig_width
     fig_width = 12  if fig_width > 12  else fig_width
     h = plt.figure(figsize=(fig_width,4.8))
     a0 = h.add_subplot(111)
-    cmap = mpl.cm.get_cmap('rainbow')
+    # Custom colormap
+    from matplotlib.colors import ListedColormap
+    cmap = mpl.colormaps.get_cmap('rainbow')
+    cmap_colors = cmap(np.linspace(0, 1, N))[::-1]
+    if highlight_ranks > 0:
+        highlight_color = np.array([1,1,0,1]) # Yellow
+        cmap_colors[:highlight_ranks, :] = highlight_color
+    cmap = ListedColormap(cmap_colors)
+
     if not(order_stats):
         a0.text(0.5,0.5, "No data to display")
         return h
@@ -417,7 +449,8 @@ def drawOrderBargraph(order_stats, timeinfo=False, Fs=None):
     ''' Bar plot '''
     percentages_at_ranks = [np.asarray([percentages[col][i] for col in ordered_labels]) for i in range(percentages.index.size)]
     for i,line in enumerate(percentages_at_ranks):
-        a0.bar(np.arange(N), line, color=cmap(1-i/N), label=f"#{i+1}", edgecolor=None, bottom=bottom)
+        color = cmap(i)
+        a0.bar(np.arange(N), line, color=color, label=f"#{i+1}", edgecolor=None, bottom=bottom)
         for j,value in enumerate(line):
             if value > 15:
                 x = j
@@ -445,12 +478,21 @@ def drawOrderBargraph(order_stats, timeinfo=False, Fs=None):
     plt.tight_layout(pad=0.2)
     return h
 
-def drawOrderPie(order_stats, layout, timeinfo=False, Fs=None, ax=None, distance=0.25, labels=True):
+def drawOrderPie(order_stats, layout, timeinfo=False, Fs=None, ax=None, distance=0.25, labels=True, highlight_ranks=0):
+    N = len(order_stats.percentage.columns)
     ''' Create figure '''
     if ax is None:
         h  = plt.figure(figsize=(6.4,6.4))
         ax = h.add_subplot(111)
-    cmap = mpl.cm.get_cmap('rainbow')
+    # Custom colormap
+    from matplotlib.colors import ListedColormap
+    cmap = mpl.colormaps.get_cmap('rainbow')
+    cmap_colors = cmap(np.linspace(0, 1, N))[::-1]
+    if highlight_ranks > 0:
+        highlight_color = np.array([1,1,0,1]) # Yellow
+        cmap_colors[:highlight_ranks, :] = highlight_color
+    cmap = ListedColormap(cmap_colors)
+
     if not(order_stats):
         ax.text(0.5,0.5, "No data to display")
         return h
@@ -485,7 +527,8 @@ def drawOrderPie(order_stats, layout, timeinfo=False, Fs=None, ax=None, distance
     miny= np.inf
     maxx=-np.inf
     maxy=-np.inf
-    colors = [cmap(1-i/N) for i in range(N)]
+    # colors = [cmap(1-i/N) for i in range(N)]
+    colors = [cmap(i) for i in range(N)]
     if not(labels):
         layout.draw(ax=ax, text=False, color="#AAAAAA")
     for e in layout.electrodes:
@@ -528,8 +571,8 @@ def drawCorrelationSpatial(correlation_data, layout, threshold=0.5, ax=None, lab
     if ax is None:
         h  = plt.figure()
         ax = h.add_subplot(111)
-    # cmap = mpl.cm.get_cmap('YlGnBu')
-    cmap = mpl.cm.get_cmap(CMAP_CORRELATION_MATRIX)
+    # cmap = mpl.colormaps.get_cmap('YlGnBu')
+    cmap = mpl.colormaps.get_cmap(CMAP_CORRELATION_MATRIX)
     ax.set_title("All correlations > {}".format(threshold))
 
     for label0 in correlation_data.columns:
