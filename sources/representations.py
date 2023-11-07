@@ -716,14 +716,12 @@ def animate_rollingTimeshift(rolling_timeshift, waveforms, Fs=1., autorun=True, 
     def drawFrame(i,rolling_timeshift):
         i = i % len(rolling_timeshift)
         data = rolling_timeshift[i].matrix
-        sb.heatmap(data, cmap=CMAP_TIMESHIFT_MATRIX, vmin=-100.0, vmax=100.0, ax=a0, cbar=False)
-        for j,k in enumerate(waveforms):
-            interval = rolling_timeshift[i].interval
-            waveform = 1 * np.asarray(waveforms[k])[interval[0]:interval[1]]
-            normalization_factor = max(np.abs(waveform))
-            normalization_factor = normalization_factor if normalization_factor > 1e-9 else 1.
-            waveform /= normalization_factor
-            a1.plot(j+waveform, lw=.5)
+        interval = rolling_timeshift[i].interval
+        # Heatmap
+        heatmap = sb.heatmap(data, cmap=CMAP_TIMESHIFT_MATRIX, vmin=-250.0, vmax=250.0, ax=a0, cbar=(i==0), cbar_kws={"orientation":"horizontal", "label":"[ms]"})
+        # Waveforms
+        _draw_waveforms_region_inline(waveforms, interval, Fs, a1)
+        # Titles & axes
         plt.title("t = [{:.2f}, {:.2f}]".format(*[idx/Fs for idx in rolling_timeshift[i].interval]))
     drawFrame(0, rolling_timeshift)
 
