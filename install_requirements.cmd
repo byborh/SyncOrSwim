@@ -1,2 +1,2 @@
 cd %CD%
-cmd.exe /K "venv\Scripts\activate && pip install -r requirements.txt"
+cmd.exe /K "venv\Scripts\python.exe -m pip -r requirements.txt"

@@ -1,2 +1,2 @@
 cd %CD%/sources
-cmd.exe /K "..\venv\Scripts\activate && python gui.py"
+cmd.exe /K ..\venv\Scripts\python.exe gui.py

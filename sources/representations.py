@@ -17,6 +17,9 @@ EMBED_LIMIT_MB = 100
 CMAP_CORRELATION_MATRIX = "jet"
 CMAP_TIMESHIFT_MATRIX = "jet"
 CMAP_ISOCHRONES = "rainbow"
+CMAP_ORDER_PIE = 'rainbow'
+CMAP_ORDER_BARGRAPH = 'rainbow'
+CMAP_ORDER_SPATIAL = 'copper'
 
 def _unitmgr(Fs, unit="s", magnitude="m"):
     prefixes = {}
@@ -208,8 +211,10 @@ def drawTimeshiftSpatial(timeshift, layout, ax=None, Fs=1.):
         ax = h.add_subplot(111)
     channels = timeshift.columns
     ax.set_title("Timeshift (ms)")
-    # cmap = mpl.cm.get_cmap('YlGnBu')
-    cmap = mpl.colormaps.get_cmap(CMAP_TIMESHIFT_MATRIX)
+    try: # HACK : Handle older versions of matplotlib constrained by Python 3.7
+        cmap = mpl.colormaps.get_cmap(CMAP_TIMESHIFT_MATRIX)
+    except:
+        cmap = mpl.cm.get_cmap(CMAP_TIMESHIFT_MATRIX)
     for ch0 in channels:
         for ch1 in channels:
             if (ch0 != ch1) and (timeshift[ch0][ch1] > 0):
@@ -240,7 +245,10 @@ def drawOrderSpatial(order, layout, ax=None, Fs=1., speed=False):
     values = [x for x in order if not(np.isnan(x))]
     title = "(Order) +/- dt [ms]" if not(speed) else "(Order) +/- speed [µm/s]"
     ax.set_title(title)
-    cmap = mpl.colormaps.get_cmap('copper')
+    try: # HACK : Handle older versions of matplotlib constrained by Python 3.7
+        cmap = mpl.colormaps.get_cmap(CMAP_ORDER_SPATIAL)
+    except:
+        cmap = mpl.cm.get_cmap(CMAP_ORDER_SPATIAL)
     for i,ch in enumerate(channels):
         if i==0:
             pos0 = layout.getElectrode(ch).position
@@ -423,7 +431,10 @@ def drawOrderBargraph(order_stats, timeinfo=False, Fs=None, highlight_ranks=0):
     a0 = h.add_subplot(111)
     # Custom colormap
     from matplotlib.colors import ListedColormap
-    cmap = mpl.colormaps.get_cmap('rainbow')
+    try: # HACK : Handle older versions of matplotlib constrained by Python 3.7
+        cmap = mpl.colormaps.get_cmap(CMAP_ORDER_BARGRAPH)
+    except:
+        cmap = mpl.cm.get_cmap(CMAP_ORDER_BARGRAPH)
     cmap_colors = cmap(np.linspace(0, 1, N))[::-1]
     if highlight_ranks > 0:
         highlight_color = np.array([1,1,0,1]) # Yellow
@@ -486,7 +497,10 @@ def drawOrderPie(order_stats, layout, timeinfo=False, Fs=None, ax=None, distance
         ax = h.add_subplot(111)
     # Custom colormap
     from matplotlib.colors import ListedColormap
-    cmap = mpl.colormaps.get_cmap('rainbow')
+    try: # HACK : Handle older versions of matplotlib constrained by Python 3.7
+        cmap = mpl.colormaps.get_cmap(CMAP_ORDER_PIE)
+    except:
+        cmap = mpl.cm.get_cmap(CMAP_ORDER_PIE)
     cmap_colors = cmap(np.linspace(0, 1, N))[::-1]
     if highlight_ranks > 0:
         highlight_color = np.array([1,1,0,1]) # Yellow
@@ -571,8 +585,10 @@ def drawCorrelationSpatial(correlation_data, layout, threshold=0.5, ax=None, lab
     if ax is None:
         h  = plt.figure()
         ax = h.add_subplot(111)
-    # cmap = mpl.colormaps.get_cmap('YlGnBu')
-    cmap = mpl.colormaps.get_cmap(CMAP_CORRELATION_MATRIX)
+    try: # HACK : Handle older versions of matplotlib constrained by Python 3.7
+        cmap = mpl.colormaps.get_cmap(CMAP_CORRELATION_MATRIX)
+    except:
+        cmap = mpl.cm.get_cmap(CMAP_CORRELATION_MATRIX)
     ax.set_title("All correlations > {}".format(threshold))
 
     for label0 in correlation_data.columns:
