@@ -16,7 +16,7 @@ import progressbar
 EMBED_LIMIT_MB = 100
 CMAP_CORRELATION_MATRIX = "jet"
 CMAP_TIMESHIFT_MATRIX = "jet"
-CMAP_ISOCHRONES = "rainbow"
+CMAP_ISOCHRONES = "rainbow_r"
 CMAP_ORDER_PIE = 'rainbow'
 CMAP_ORDER_BARGRAPH = 'rainbow'
 CMAP_ORDER_SPATIAL = 'copper'

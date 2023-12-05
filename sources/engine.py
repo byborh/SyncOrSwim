@@ -595,18 +595,18 @@ class CorrelationDataframe:
         if self._isPlotReady(PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"]) and which in[-1,3]:
             representations.drawRollingTimeshiftSpatial(
                 self.rolling_timeshift_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
-                contour=True, contourlabels=False, contourmap="rainbow",
-                fill=False, fillmap="rainbow")
+                contour=True, contourlabels=False, contourmap="rainbow_r",
+                fill=False, fillmap="rainbow_r")
         if self._isPlotReady(PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"]) and which in[-1,4]:
             representations.drawRollingTimeshiftSpatial(
                 self.rolling_timeshift_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
                 contour=True, contourlabels=False, contourmap=None,
-                fill=True, fillmap="rainbow")
+                fill=True, fillmap="rainbow_r")
         if self._isPlotReady(PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"]) and which in[-1,5]:
             representations.drawRollingTimeshiftSpatial(
                 self.rolling_timeshift_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
                 contour=False, contourlabels=False, contourmap=None,
-                fill=True, fillmap="rainbow")
+                fill=True, fillmap="rainbow_r")
         if which in [-1,0,1,2,3,4,5]:
             plt.show(block=False)
     def drawRollingOrderStats(self, which=-1):
