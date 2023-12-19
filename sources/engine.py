@@ -6,6 +6,7 @@ import json
 from Hardware import MEAs
 from Hardware import recipients
 from Hardware import setups
+from version import __version__, __version_info__
 
 import numpy as np
 import pandas as pd
@@ -58,6 +59,7 @@ class CorrelationDataframe:
         self.Fs = None
         self.file = None
         self.datatype = None
+        self.version = __version__
         ''' Parameters '''
         self.autobake = True
         self.parameters = {}
@@ -431,7 +433,25 @@ class CorrelationDataframe:
         self._onBakeFinish()
         return True
     def exportRollingTimeshift(self, destination=None, which=-1):
-        pass
+        if not self._isExportReady(EXPORTS["ROLLINGTIMESHIFT"]):
+            colprint.printerr(MSG_EXPORT_FAILED)
+            return False
+        if which in [-1, 0]:
+            ''' which=0 : all timeshift data (all windows)'''
+            W = len(self.rolling_timeshift_data)
+            datasets = []; sheet_names = []; titles = []
+            # Data sheets
+            datasets.append(pd.DataFrame({'Phase': [f"Phase {i+1}-{W}" for i in range(W)], 'Correlation': [f"Correlation {i+1}-{W}" for i in range(W)]}))
+            sheet_names.append("Windowed data")
+            titles.append("List of worksheets for windowed data")
+            # Phase matrices
+            for i,td in enumerate(self.rolling_timeshift_data):
+                datasets.append(td.matrix) ; sheet_names.append(f"Phase {i+1}-{W}")   ; titles.append(f"Phase matrix (samples) in window #{i+1}/{W} : Samples {td.interval} / Period ({td.interval[0]/self.Fs},{td.interval[1]/self.Fs}) s")
+                # Correlation matrices
+            for i,td in enumerate(self.rolling_timeshift_data):
+                datasets.append(td.correlation) ; sheet_names.append(f"Correlation {i+1}-{W}")   ; titles.append(f"Correlation matrix in window #{i+1}/{W} : Samples {td.interval} / Period ({td.interval[0]/self.Fs},{td.interval[1]/self.Fs}) s")
+            data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, analyzer=self)
+        return True
     def bakeRollingOrder(self):
         self._checkBackwardsCompatibility()
         ''' Check input data '''
@@ -459,6 +479,7 @@ class CorrelationDataframe:
             datasets.append(order_stats.N)                           ; sheet_names.append("N")         ; titles.append(f"Number of times at rank #i (out of {order_stats.Ntotal} total)")
             destination = (self.file + '.order_stats.xlsx') if destination is None else destination
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
+        return True
     def checkDependencies(self, data, message, baker=None):
         output = True
         if baker is None:
@@ -726,7 +747,7 @@ class CorrelationDataframe:
         if which == EXPORTS["ROLLINGCORRELATION"]:
             return bool(self.rolling_correlation_data)
         if which == EXPORTS["ROLLINGTIMESHIFT"]:
-            return False
+            return bool(self.rolling_timeshift_data)
         if which == EXPORTS["ROLLINGORDER"]:
             return bool(self.rolling_order_data)
         return False

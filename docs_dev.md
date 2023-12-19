@@ -54,3 +54,17 @@ clustering_data = getClustering(dataframe, tolerance)
     * `clustering_data.linkage` *(scipy.ndarray)* is the hierarchical clustering encoded as a linkage matrix, returned by `scipy.cluster.hierarchy.linkage`
     * `clustering_data.clusters` *(list)* is the list of detected clusters (each cluster is a list of labels)
     * `clustering_data.labels` *(pandas.core.indexes.bas.Index)* is the list of labels. May very well be unnecessary and will be removed in the future.
+
+### processing.rollingTimeshift
+```python
+rolling_timeshift_data = rollingTimeshift(signals, window_samples, overlap_samples)
+```
+* Arguments
+  * `signals` *(dict)* is a dictionnary of signals.
+  * `window_samples` *(int)*
+  * `overlap_samples` *(int)*
+* Returned values
+  * `rolling_timeshift_data` *(list of namedtuple("Rolling_Timeshift_Data", ["matrix", "correlation", "interval"]))*
+    * `rolling_timeshift_data[i].matrix` *()* same as timeshift_data.matrix
+    * `rolling_timeshift_data[i].correlation` *()* same as timeshift_data.correlation
+    * `rolling_timeshift_data[i].interval` *(tuple)* window bounds (i0,i1) in samples

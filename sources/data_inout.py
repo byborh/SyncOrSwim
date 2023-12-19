@@ -219,7 +219,7 @@ def df2xlsx_multisheet(dfs, sheet_names, titles, destination, analyzer=None):
     pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
     with pd.ExcelWriter(destination) as writer:
         if analyzer != None:
-            info   = pd.DataFrame({'input file': [str(analyzer.file)], 'Fs (Hz)': [str(analyzer.Fs)]})
+            info   = pd.DataFrame({'Software version': [str(analyzer.version)], 'input file': [str(analyzer.file)], 'Fs (Hz)': [str(analyzer.Fs)]})
             params = pd.DataFrame({p: [str(analyzer.parameters[p])] for p in analyzer.parameters})
             info.transpose().to_excel(writer  , sheet_name="Information")
             params.transpose().to_excel(writer, sheet_name="Parameters" )

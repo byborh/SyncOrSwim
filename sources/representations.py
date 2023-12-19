@@ -458,7 +458,7 @@ def drawOrderBargraph(order_stats, timeinfo=False, Fs=None, highlight_ranks=0):
     ''' Sort out units '''
     Fs, unit, unit_prefix = _unitmgr(Fs, unit="s", magnitude="m")
     ''' Bar plot '''
-    percentages_at_ranks = [np.asarray([percentages[col][i] for col in ordered_labels]) for i in range(percentages.index.size)]
+    percentages_at_ranks = [np.asarray([percentages[col].iloc[i] for col in ordered_labels]) for i in range(percentages.index.size)]
     for i,line in enumerate(percentages_at_ranks):
         color = cmap(i)
         a0.bar(np.arange(N), line, color=color, label=f"#{i+1}", edgecolor=None, bottom=bottom)
@@ -468,11 +468,11 @@ def drawOrderBargraph(order_stats, timeinfo=False, Fs=None, highlight_ranks=0):
                 y0 = bottom[j]
                 y1 = y0 + value
                 col = ordered_labels[j]
-                dt     = order_stats.dt[col][i]     / (Fs * unit_prefix)
-                dt_std = order_stats.dt_std[col][i] / (Fs * unit_prefix)
+                dt     = order_stats.dt[col].iloc[i]     / (Fs * unit_prefix)
+                dt_std = order_stats.dt_std[col].iloc[i] / (Fs * unit_prefix)
                 txt_idx = f"#{i+1}"
                 txt_pc = f"{value:.1f}%"
-                txt_N  = f"N={order_stats.N[col][i]:.0f}"
+                txt_N  = f"N={order_stats.N[col].iloc[i]:.0f}"
                 txt_dt = f"+{dt:.1f} {unit}"
                 txt_std = f"±{dt_std:.1f} {unit}"
                 text = f"{txt_idx}: {txt_pc}\n({txt_N})\n{txt_dt}\n{txt_std}" if timeinfo else f"{txt_idx}\n{txt_pc}\n({txt_N})"
@@ -493,7 +493,7 @@ def drawOrderPie(order_stats, layout, timeinfo=False, Fs=None, ax=None, distance
     N = len(order_stats.percentage.columns)
     ''' Create figure '''
     if ax is None:
-        h  = plt.figure(figsize=(6.4,6.4))
+        h  = plt.figure(figsize=(6.4*1.1 , 6.4))
         ax = h.add_subplot(111)
     # Custom colormap
     from matplotlib.colors import ListedColormap
@@ -569,10 +569,12 @@ def drawOrderPie(order_stats, layout, timeinfo=False, Fs=None, ax=None, distance
                 ax.text(pos.x, pos.y, str(e.label), color='black', horizontalalignment='center', verticalalignment='center')
 
     ''' Cosmetics '''
+    box = ax.get_position()
     for i,color in enumerate(colors):
         ax.bar([0],[0], color=color, label=f"#{i+1}")
     ax.bar([0],[0],color="white", label="N/A")
-    ax.legend(title="Ranks", labelspacing=0.25)
+    ax.set_position([box.x0, box.y0, box.width * 0.9, box.height]) # Shrink MEA view by 10% to leave space for legend outside
+    ax.legend(title="Ranks", labelspacing=0.25, loc='center left', bbox_to_anchor=(1, 0.5)) # Legend outside
     ax.axis('equal')
     ax.set_xlim([minx-1.1*radius,maxx+1.1*radius])
     ax.set_ylim([miny-1.1*radius,maxy+1.1*radius])
