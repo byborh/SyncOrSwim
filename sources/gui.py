@@ -196,12 +196,12 @@ if __name__ == "__main__":
     col = 0 ; row = 0
     add_analysis("CORRELATION"       , parent=analyses_labelframe, column=col, row=row, text="Correlation")        ; row += 1
     #add_analysis("GRANGER"           , parent=analyses_labelframe, column=col, row=row, text="Granger causality")  ; row += 1
-    add_analysis("TIMESHIFT"         , parent=analyses_labelframe, column=col, row=row, text="Timeshift")          ; row += 1
+    add_analysis("TIMESHIFT"         , parent=analyses_labelframe, column=col, row=row, text="Phase")              ; row += 1
     add_analysis("ORDER"             , parent=analyses_labelframe, column=col, row=row, text="Order")              ; row += 1
     add_analysis("ACTIVATIONORDER"   , parent=analyses_labelframe, column=col, row=row, text="Activation order")   ; row += 1
     add_analysis("CLUSTERING"        , parent=analyses_labelframe, column=col, row=row, text="Clustering")         ; col += 1; row=0
     add_analysis("ROLLINGCORRELATION", parent=analyses_labelframe, column=col, row=row, text="Rolling correlation"); row += 1
-    add_analysis("ROLLINGTIMESHIFT"  , parent=analyses_labelframe, column=col, row=row, text="Rolling timeshift")  ; row += 1
+    add_analysis("ROLLINGTIMESHIFT"  , parent=analyses_labelframe, column=col, row=row, text="Rolling phase")      ; row += 1
     add_analysis("ROLLINGORDER"      , parent=analyses_labelframe, column=col, row=row, text="Rolling order")      ; row += 1
 
     """ Analysis controls """
@@ -422,14 +422,14 @@ if __name__ == "__main__":
     add_plot_entry(analyses_widgets["CORRELATION"]["show_button"]       , "Correlation matrix"                              , lambda: ENGINE.drawCorrelation(0)       , engine.PLOTS["CORRELATIONMATRIX"     ])
     add_plot_entry(analyses_widgets["CORRELATION"]["show_button"]       , "Granger causality matrix"                        , lambda: ENGINE.drawCorrelation(1)       , engine.PLOTS["GRANGERCAUSALITYMATRIX"])
     add_plot_entry(analyses_widgets["CORRELATION"]["show_button"]       , "Correlation (spatial)"                           , lambda: ENGINE.drawCorrelation(2)       , engine.PLOTS["CORRELATIONSPATIAL"])
-    add_plot_entry(analyses_widgets["TIMESHIFT"]["show_button"]         , "Timeshift"                                       , lambda: ENGINE.drawTimeshift(0)         , engine.PLOTS["TIMESHIFT"             ])
+    add_plot_entry(analyses_widgets["TIMESHIFT"]["show_button"]         , "Phase"                                           , lambda: ENGINE.drawTimeshift(0)         , engine.PLOTS["TIMESHIFT"             ])
     add_plot_entry(analyses_widgets["ROLLINGCORRELATION"]["show_button"], "Rolling correlation (animation)"                 , lambda: ENGINE.drawRollingCorrelation(0), engine.PLOTS["ROLLINGCORRELATION"])
-    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling timeshift (animation)"                   , lambda: ENGINE.drawRollingTimeshift(0)  , engine.PLOTS["ROLLINGTIMESHIFT"])
-    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling timeshift spatial (animation)"           , lambda: ENGINE.drawRollingTimeshift(1)  , engine.PLOTS["ROLLINGTIMESHIFTSPATIAL"])
-    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling timeshift spatial (isolines & labels)"   , lambda: ENGINE.drawRollingTimeshift(2)  , engine.PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"])
-    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling timeshift spatial (isolines only)"       , lambda: ENGINE.drawRollingTimeshift(3)  , engine.PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"])
-    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling timeshift spatial (isolines & colormap)" , lambda: ENGINE.drawRollingTimeshift(4)  , engine.PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"])
-    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling timeshift spatial (colormap only)"       , lambda: ENGINE.drawRollingTimeshift(5)  , engine.PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"])
+    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling phase (animation)"                       , lambda: ENGINE.drawRollingTimeshift(0)  , engine.PLOTS["ROLLINGTIMESHIFT"])
+    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling phase spatial (animation)"               , lambda: ENGINE.drawRollingTimeshift(1)  , engine.PLOTS["ROLLINGTIMESHIFTSPATIAL"])
+    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling phase spatial (isolines & labels)"       , lambda: ENGINE.drawRollingTimeshift(2)  , engine.PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"])
+    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling phase spatial (isolines only)"           , lambda: ENGINE.drawRollingTimeshift(3)  , engine.PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"])
+    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling phase spatial (isolines & colormap)"     , lambda: ENGINE.drawRollingTimeshift(4)  , engine.PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"])
+    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling phase spatial (colormap only)"           , lambda: ENGINE.drawRollingTimeshift(5)  , engine.PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"])
     add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Rolling order stats : bar graph"                 , lambda: ENGINE.drawRollingOrderStats(0) , engine.PLOTS["ROLLINGORDERBAR"])
     add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Rolling order stats : bar graph (highlight #1)"  , lambda: ENGINE.drawRollingOrderStats(1) , engine.PLOTS["ROLLINGORDERBAR"])
     add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Rolling order stats : bar graph (highlight #1-2)", lambda: ENGINE.drawRollingOrderStats(2) , engine.PLOTS["ROLLINGORDERBAR"])
@@ -445,10 +445,10 @@ if __name__ == "__main__":
 
     add_export_entry(analyses_widgets["CORRELATION"]["export_button"]       , "Correlation matrix"      , lambda destination: ENGINE.exportCorrelation(which=0, destination=destination)       , engine.EXPORTS["CORRELATIONMATRIX"     ])
     add_export_entry(analyses_widgets["CORRELATION"]["export_button"]       , "Granger causality matrix", lambda destination: ENGINE.exportCorrelation(which=1, destination=destination)       , engine.EXPORTS["GRANGERCAUSALITYMATRIX"])
-    add_export_entry(analyses_widgets["TIMESHIFT"]["export_button"]         , "Timeshift"               , lambda destination: ENGINE.exportTimeshift(which=0, destination=destination)         , engine.EXPORTS["TIMESHIFT"])
+    add_export_entry(analyses_widgets["TIMESHIFT"]["export_button"]         , "Phase"                   , lambda destination: ENGINE.exportTimeshift(which=0, destination=destination)         , engine.EXPORTS["TIMESHIFT"])
     add_export_entry(analyses_widgets["ORDER"]["export_button"]             , "Order"                   , lambda destination: ENGINE.exportOrder(which=0, destination=destination)             , engine.EXPORTS["ORDER"])
     add_export_entry(analyses_widgets["ROLLINGCORRELATION"]["export_button"], "Rolling correlation"     , lambda destination: ENGINE.exportRollingCorrelation(which=0, destination=destination), engine.EXPORTS["ROLLINGCORRELATION"])
-    add_export_entry(analyses_widgets["ROLLINGTIMESHIFT"]["export_button"]  , "Rolling timeshift"       , lambda destination: ENGINE.exportRollingTimeshift(which=0, destination=destination)  , engine.EXPORTS["ROLLINGTIMESHIFT"])
+    add_export_entry(analyses_widgets["ROLLINGTIMESHIFT"]["export_button"]  , "Rolling phase"           , lambda destination: ENGINE.exportRollingTimeshift(which=0, destination=destination)  , engine.EXPORTS["ROLLINGTIMESHIFT"])
     add_export_entry(analyses_widgets["ROLLINGORDER"]["export_button"]      , "Rolling order"           , lambda destination: ENGINE.exportRollingOrder(which=0, destination=destination)      , engine.EXPORTS["ROLLINGORDER"])
     add_export_entry(analyses_widgets["CLUSTERING"]["export_button"]        , "Clustered events"        , lambda destination: ENGINE.exportClustering(which=0, destination=destination)        , engine.EXPORTS["CLUSTERING"])
 
