@@ -260,12 +260,12 @@ if __name__ == "__main__":
             ENGINE.resetRollingPhaseData()
             ENGINE.resetClusteringData()
         filetypes = [
-            ("Spike2 event files", "*.txt"),
-            ("pyBSA event files", "*.txt"),
-            ("All supported files", " *.h5 *.rhd *.bin"),
+            ("All supported files", "*.h5 *.rhd *.bin *.txt"),
             ("MCS h5 raw data files", "*.h5"),
             ("Intan RHD raw data files", "*.rhd"),
-            ("Binary files", "*.bin")
+            ("Binary files", "*.bin"),
+            ("Spike2 event files", "*.txt"),
+            ("pyBSA event files", "*.txt"),
             ]
         path = tkfd.askopenfilename(initialdir=".", filetypes=filetypes)
         import_parameters = {}

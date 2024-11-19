@@ -14,6 +14,7 @@ from matplotlib import pyplot as plt
 PLOTS = {}
 PLOTS["CORRELATIONMATRIX"]             =  0
 PLOTS["CLUSTEREDEVENTS"]               =  1
+PLOTS["GRANGERCAUSALITYMATRIX"]        =  2
 PLOTS["DENDROGRAM"]                    =  3
 PLOTS["PHASE"]                         =  4
 PLOTS["ROLLINGCORRELATION"]            =  5
