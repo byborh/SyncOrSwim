@@ -15,7 +15,7 @@ import progressbar
 
 EMBED_LIMIT_MB = 100
 CMAP_CORRELATION_MATRIX = "jet"
-CMAP_TIMESHIFT_MATRIX = "jet"
+CMAP_PHASE_MATRIX = "jet"
 CMAP_ISOCHRONES = "rainbow_r"
 CMAP_ORDER_PIE = 'rainbow'
 CMAP_ORDER_BARGRAPH = 'rainbow'
@@ -60,8 +60,9 @@ def drawCorrelation(correlation_matrix, title='', bounds=(-1.0, 1.0)):
     cmap = CMAP_CORRELATION_MATRIX
     h = sb.clustermap(correlation_matrix, cmap = cmap, linewidths = 0.1, figsize=(6,6), method='average', vmin=bounds[0], vmax=bounds[1])
     if title:
-        h.fig.suptitle(title)
+        h.figure.suptitle(title)
     # plt.show()
+    return h
 
 def drawDendrogram(correlation_matrix, linkage):
     h = plt.figure(figsize=(12,4))
@@ -70,6 +71,7 @@ def drawDendrogram(correlation_matrix, linkage):
     dg = spc.dendrogram(linkage, labels=labels, orientation="top", ax=a, leaf_font_size=10)
     a.set_ylabel("Distance")
     plt.tight_layout()
+    return h
 
 def drawClusterTimestamps(timestamps, cluster):
     if len(cluster) > 1:
@@ -84,16 +86,17 @@ def drawClusterTimestamps(timestamps, cluster):
             diracEvents[t] = 1.
             p, = ax.plot(diracEvents + i*1.1)
             plots.append(p)
-        plt.title("Events in cluster " + ', '.join(cluster))
-        plt.legend(plots, cluster)
+        ax.set_title("Events in cluster " + ', '.join(cluster))
+        ax.legend(plots, cluster)
         plt.tight_layout()
         # plt.show()
+        return f
 
 def drawClusteredEvents(timestamps, linkage):
     labels = [k for k in timestamps.keys()]
     f = plt.figure(figsize=(10,5))
-    a0 = plt.subplot2grid((1,3), (0,0), rowspan=1, colspan=1)
-    a1 = plt.subplot2grid((1,3), (0,1), rowspan=1, colspan=2)
+    a0 = plt.subplot2grid((1,3), (0,0), rowspan=1, colspan=1, fig=f)
+    a1 = plt.subplot2grid((1,3), (0,1), rowspan=1, colspan=2, fig=f)
     dg = spc.dendrogram(linkage, labels=labels, orientation="left", ax=a0)
     ordered_labels = [labels[i] for i in dg['leaves']]
     for i,k in enumerate(ordered_labels):
@@ -112,11 +115,12 @@ def drawClusteredEvents(timestamps, linkage):
 
     plt.tight_layout()
     # plt.show()
+    return f
 
 def drawRollingCorrelation(rolling_correlation, Fs=1.):
     labels = rolling_correlation[0].matrix.columns
     f = plt.figure(figsize=(7,5))
-    ax = plt.subplot(111)
+    ax = f.add_subplot(111)
 
     for l0,l1 in itertools.combinations(labels, 2):
         corr = [rc.matrix[l0][l1] for rc in rolling_correlation]
@@ -127,10 +131,11 @@ def drawRollingCorrelation(rolling_correlation, Fs=1.):
     ax.set_xticklabels(xtl, rotation=45, ha="right")
 
     ax.set_title("Rolling correlation")
-    plt.legend()
+    ax.legend()
 
     plt.tight_layout()
     # plt.show()
+    return f
 
 def drawAverageRollingCorrelation(rolling_correlation, Fs=1., ax=None):
     if ax is None:
@@ -146,18 +151,13 @@ def drawAverageRollingCorrelation(rolling_correlation, Fs=1., ax=None):
         N += 1
     correlation /= N
     ax.plot(time, correlation)
-    # xticks = [int(i) for i in ax.get_xticks()]
-    # time_ranges = [[t/Fs for t in rc.interval] for rc in rolling_correlation]
-    # xtl = ["{} - {} s".format(*time_ranges[i]) if ((i>=0) and (i < len(rolling_correlation))) else "" for i in xticks]
-    # ax.set_xticklabels(xtl, rotation=45, ha="right")
-
     ax.set_title("Rolling correlation (averaged)")
     return ax.get_figure()
 
 def drawClusteredRollingCorrelation(rolling_correlation, clusters):
     labels = rolling_correlation[0].matrix.columns
     f = plt.figure(figsize=(7,5))
-    ax = plt.subplot(111)
+    ax = f.add_subplot(111)
 
     for cluster in clusters:
         if len(cluster) == 1:
@@ -173,10 +173,11 @@ def drawClusteredRollingCorrelation(rolling_correlation, clusters):
     ax.set_xticklabels(xtl, rotation=45, ha="right")
 
     ax.set_title("Rolling correlation")
-    plt.legend()
+    ax.legend()
 
     plt.tight_layout()
     # plt.show()
+    return f
 
 def drawClustersSpatial(correlation_data, cluster_data, layout, ax=None):
     if ax is None:
@@ -205,23 +206,23 @@ def drawClustersSpatial(correlation_data, cluster_data, layout, ax=None):
     ax.axis('equal')
     return h
 
-def drawTimeshiftSpatial(timeshift, layout, ax=None, Fs=1.):
+def drawPhaseSpatial(phase, layout, ax=None, Fs=1.):
     if ax is None:
         h  = plt.figure()
         ax = h.add_subplot(111)
-    channels = timeshift.columns
-    ax.set_title("Timeshift (ms)")
+    channels = phase.columns
+    ax.set_title("Phase (ms)")
     try: # HACK : Handle older versions of matplotlib constrained by Python 3.7
-        cmap = mpl.colormaps.get_cmap(CMAP_TIMESHIFT_MATRIX)
+        cmap = mpl.colormaps.get_cmap(CMAP_PHASE_MATRIX)
     except:
-        cmap = mpl.cm.get_cmap(CMAP_TIMESHIFT_MATRIX)
+        cmap = mpl.cm.get_cmap(CMAP_PHASE_MATRIX)
     for ch0 in channels:
         for ch1 in channels:
-            if (ch0 != ch1) and (timeshift[ch0][ch1] > 0):
+            if (ch0 != ch1) and (phase[ch0][ch1] > 0):
                 pos0 = layout.getElectrode(ch0).position
                 pos1 = layout.getElectrode(ch1).position
-                color = cmap(timeshift[ch0][ch1])
-                dt_s = timeshift[ch0][ch1]/Fs
+                color = cmap(phase[ch0][ch1])
+                dt_s = phase[ch0][ch1]/Fs
                 dt_ms = dt_s * 1000.
                 distance_um = np.sqrt((pos1.x-pos0.x)**2 + (pos1.y-pos0.y)**2)
                 distance_m = distance_um / 1e6
@@ -300,7 +301,7 @@ def drawOrderSpatial(order, layout, ax=None, Fs=1., speed=False):
     ax.axis('equal')
     return ax.get_figure()
 
-def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., reference_channel=None, speed=False,
+def drawRollingPhaseSpatial(phase_data, layout, ax=None, Fs=1., reference_channel=None, speed=False,
                                 contour=True, contourlabels=True, contourmap=None,
                                 fill=False, fillmap=CMAP_ISOCHRONES):
     print("Drawing isochrones ... (may take a while)")
@@ -308,13 +309,13 @@ def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., referenc
         h  = plt.figure()
         ax = h.add_subplot(111)
     else:
-        h = get_ax.figure()
-    channels = timeshift_data[0].matrix.columns
+        h = ax.get_figure()
+    channels = phase_data[0].matrix.columns
     title = "Isochrones"
     ax.set_title(title)
     ''' Prep data '''
     reference_channel = channels[0] if reference_channel is None else reference_channel
-    values = {str(td.interval): td.matrix[reference_channel] for td in timeshift_data}
+    values = {str(td.interval): td.matrix[reference_channel] for td in phase_data}
     df_values = pd.DataFrame(values)
     dt_mean = df_values.mean(axis=1, skipna=True)
     dt_std  = df_values.std(axis=1, skipna=True)
@@ -335,13 +336,6 @@ def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., referenc
         speed_mps = distance_m / dt_s if dt_s > 0 else 0
         speed_umps = 1e6 * speed_mps
         series_speed.at[ch] = speed_umps
-        # weight = 'bold' if i==0 else 'normal'
-        # color = 'red' if (order[ch] == np.max(values)) else 'black'
-        # color = cmap(0.25*(order[ch]/len(values)))
-        # color = 'black'
-        # ax.text(*pos1._to_tuple(), f"({i+1})", ha='center', va='bottom', weight=weight, color=color)
-        # dt_or_speed = dt_ms if not(speed) else distance_um
-        # ax.text(*pos1._to_tuple(), f"{dt_or_speed:+2.1f}", ha='center', va='top', weight=weight, size='smaller', color=color)
 
     ''' Draw isochrones '''
     # Draw electrodes
@@ -350,7 +344,6 @@ def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., referenc
             continue
         fillstyle = 'full' if e.label in channels else 'none'
         ax.plot(e.position.x, e.position.y, marker=e.shape, color="black", ms=5, alpha=1.0, fillstyle=fillstyle)
-        # ax.text(e.position.x, e.position.y, str(e.label), color='black', horizontalalignment='center', verticalalignment='center')
     # Draw contour (isochrones)
     x = []
     y = []
@@ -400,11 +393,6 @@ def drawRollingTimeshiftSpatial(timeshift_data, layout, ax=None, Fs=1., referenc
             pass
             # print("Triangulation or interpolation error")
     h = ax.get_figure()
-    # cbar = h.colorbar(contour, ax=ax)
-    # if not speed:
-    #     cbar.set_label("dt [ms]")
-    # else:
-    #     cbar.set_label("Speed [µm/s]")
     ax.set_xlabel("[µm]")
     ax.set_ylabel("[µm]")
 
@@ -726,27 +714,27 @@ def animate_rollingCorrelation(rolling_correlation, waveforms, Fs=1., autorun=Tr
         plt.show()
     return anim
 
-def animate_rollingTimeshift(rolling_timeshift, waveforms, Fs=1., autorun=True, env=None):
+def animate_rollingPhase(rolling_phase, waveforms, Fs=1., autorun=True, env=None):
     fig = plt.figure(figsize=(8,4))
     a0 = fig.add_subplot(121)
     a1 = fig.add_subplot(122)
-    N = len(rolling_timeshift)
-    def drawFrame(i,rolling_timeshift):
-        i = i % len(rolling_timeshift)
-        data = rolling_timeshift[i].matrix
-        interval = rolling_timeshift[i].interval
+    N = len(rolling_phase)
+    def drawFrame(i,rolling_phase):
+        i = i % len(rolling_phase)
+        data = rolling_phase[i].matrix
+        interval = rolling_phase[i].interval
         # Heatmap
-        heatmap = sb.heatmap(data, cmap=CMAP_TIMESHIFT_MATRIX, vmin=-250.0, vmax=250.0, ax=a0, cbar=(i==0), cbar_kws={"orientation":"horizontal", "label":"[ms]"})
+        heatmap = sb.heatmap(data, cmap=CMAP_PHASE_MATRIX, vmin=-250.0, vmax=250.0, ax=a0, cbar=(i==0), cbar_kws={"orientation":"horizontal", "label":"[ms]"})
         # Waveforms
         _draw_waveforms_region_inline(waveforms, interval, Fs, a1)
         # Titles & axes
-        plt.title("t = [{:.2f}, {:.2f}]".format(*[idx/Fs for idx in rolling_timeshift[i].interval]))
-    drawFrame(0, rolling_timeshift)
+        plt.title("t = [{:.2f}, {:.2f}]".format(*[idx/Fs for idx in rolling_phase[i].interval]))
+    drawFrame(0, rolling_phase)
 
     def animate(i):
         a0.clear()
         a1.clear()
-        drawFrame(i, rolling_timeshift)
+        drawFrame(i, rolling_phase)
 
     anim = Player(fig, animate, maxi=N-1, pos=(0.125, 0.95), interval=500, blit=False, save_count=N)
 
@@ -801,16 +789,16 @@ def animate_rollingCorrelationSpatial(rolling_correlation, waveforms, layout, th
         plt.show()
     return anim
 
-def animate_rollingTimeshiftSpatial(rolling_timeshift, layout, waveforms, Fs=1., autorun=True, env=None):
+def animate_rollingPhaseSpatial(rolling_phase, layout, waveforms, Fs=1., autorun=True, env=None):
     fig = plt.figure(figsize=(8,4))
     a0 = fig.add_subplot(121)
     a1 = fig.add_subplot(122)
-    N = len(rolling_timeshift)
+    N = len(rolling_phase)
     def drawFrame(i):
-        i = i % len(rolling_timeshift)
-        data = rolling_timeshift[i].matrix
-        drawTimeshiftSpatial(data, layout=layout, ax=a0, Fs=Fs)
-        interval = rolling_timeshift[i].interval
+        i = i % len(rolling_phase)
+        data = rolling_phase[i].matrix
+        drawPhaseSpatial(data, layout=layout, ax=a0, Fs=Fs)
+        interval = rolling_phase[i].interval
         _draw_waveforms_region_inline(waveforms, interval, Fs, a1)
         time_range = [idx/Fs for idx in interval]
         a0.set_xlabel('[um]')
@@ -838,16 +826,16 @@ def animate_rollingTimeshiftSpatial(rolling_timeshift, layout, waveforms, Fs=1.,
         plt.show()
     return anim
 
-def animate_rollingOrderSpatial(rolling_order, rolling_timeshift, layout, waveforms, Fs=1., stack=False, speed=False, autorun=True, env=None):
+def animate_rollingOrderSpatial(rolling_order, rolling_phase, layout, waveforms, Fs=1., stack=False, speed=False, autorun=True, env=None):
     fig = plt.figure(figsize=(10,6))
     aa = fig.add_axes([0.10, 0.70, 0.80, 0.20])
     a0 = fig.add_axes([0.10, 0.10, 0.35, 0.55])
     a1 = fig.add_axes([0.55, 0.10, 0.35, 0.55])
     ''' init '''
     N = len(rolling_order)
-    confidence_avg = np.asarray([np.average([x for x in rt.correlation.values]) for rt in rolling_timeshift])
-    confidence_std = np.asarray([    np.std([x for x in rt.correlation.values]) for rt in rolling_timeshift])
-    time           = np.asarray([rt.interval[0]/Fs                              for rt in rolling_timeshift])
+    confidence_avg = np.asarray([np.average([x for x in rt.correlation.values]) for rt in rolling_phase])
+    confidence_std = np.asarray([    np.std([x for x in rt.correlation.values]) for rt in rolling_phase])
+    time           = np.asarray([rt.interval[0]/Fs                              for rt in rolling_phase])
     aa.fill_between(time, confidence_avg+confidence_std, confidence_avg-confidence_std, color='grey')
     aa.plot(time, confidence_avg, color='black')
     cursor0, = aa.plot([0], [0], color='red')

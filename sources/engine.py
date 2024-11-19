@@ -4,8 +4,6 @@ import data_inout
 import colprint
 import json
 from Hardware import MEAs
-from Hardware import recipients
-from Hardware import setups
 from version import __version__, __version_info__
 
 import numpy as np
@@ -16,13 +14,12 @@ from matplotlib import pyplot as plt
 PLOTS = {}
 PLOTS["CORRELATIONMATRIX"]             =  0
 PLOTS["CLUSTEREDEVENTS"]               =  1
-PLOTS["GRANGERCAUSALITYMATRIX"]        =  2
 PLOTS["DENDROGRAM"]                    =  3
-PLOTS["TIMESHIFT"]                     =  4
+PLOTS["PHASE"]                         =  4
 PLOTS["ROLLINGCORRELATION"]            =  5
-PLOTS["ROLLINGTIMESHIFT"]              =  6
-PLOTS["ROLLINGTIMESHIFTSPATIAL"]       =  7
-PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"] =  8
+PLOTS["ROLLINGPHASE"]                  =  6
+PLOTS["ROLLINGPHASESPATIAL"]           =  7
+PLOTS["ROLLINGPHASESPATIALSTATIC"]     =  8
 PLOTS["ROLLINGORDERSPATIAL"]           =  9
 PLOTS["ROLLINGORDERBAR"]               = 10
 PLOTS["ROLLINGORDERPIE"]               = 11
@@ -33,15 +30,15 @@ EXPORTS = {}
 EXPORTS["CORRELATIONMATRIX"]      = 0
 EXPORTS["GRANGERCAUSALITYMATRIX"] = 1
 EXPORTS["DENDROGRAM"]             = 2
-EXPORTS["TIMESHIFT"]              = 3
+EXPORTS["PHASE"]                  = 3
 EXPORTS["ORDER"]                  = 4
 EXPORTS["CLUSTERING"]             = 5
 EXPORTS["ROLLINGCORRELATION"]     = 6
-EXPORTS["ROLLINGTIMESHIFT"]       = 7
+EXPORTS["ROLLINGPHASE"]           = 7
 EXPORTS["ROLLINGORDER"]           = 8
 
 TIMESTAMP_DATATYPES = [data_inout.SPIKE2EVENTS, data_inout.PYBSAEVENTS]
-WAVEFORM_DATATYPES  = [data_inout.H5WAVEFORMS, data_inout.RHDWAVEFORMS]
+WAVEFORM_DATATYPES  = [data_inout.H5WAVEFORMS, data_inout.RHDWAVEFORMS, data_inout.BINWAVEFORMS]
 
 MSG_EXPORT_FAILED = "Export is not ready"
 
@@ -89,10 +86,10 @@ class CorrelationDataframe:
         pass
     def resetProcessedData(self):
         self.resetCorrelationData()
-        self.resetTimeshiftData()
+        self.resetPhaseData()
         self.resetClusteringData()
         self.resetRollingCorrelationData()
-        self.resetRollingTimeshiftData()
+        self.resetRollingPhaseData()
     def resetTimestampData(self):
         self.timestamps_raw = None
         self.timestamps = None
@@ -106,13 +103,13 @@ class CorrelationDataframe:
     def resetCorrelationData(self):
         self.correlation_data = None
         self.granger_data = None
-    def resetTimeshiftData(self):
-        self.timeshift_data = None
+    def resetPhaseData(self):
+        self.phase_data = None
         self.order_data = None
     def resetRollingCorrelationData(self):
         self.rolling_correlation_data = None
-    def resetRollingTimeshiftData(self):
-        self.rolling_timeshift_data = None
+    def resetRollingPhaseData(self):
+        self.rolling_phase_data = None
         self.rolling_order_data = None
         self.order_stats = None
     def resetClusteringData(self):
@@ -152,6 +149,7 @@ class CorrelationDataframe:
         import_methods = {}
         import_methods[data_inout.H5WAVEFORMS]  = data_inout.fromH5
         import_methods[data_inout.RHDWAVEFORMS] = data_inout.fromRHD
+        import_methods[data_inout.BINWAVEFORMS] = data_inout.fromBIN
         ''' Check input file type and load it '''
         waveforms, Fs = import_methods[datatype](path, **kwargs)
         self.waveforms_raw = processing.deepcopy_data(waveforms)
@@ -284,7 +282,7 @@ class CorrelationDataframe:
         return True
     def exportGranger(self, destination=None, which=-1):
         pass
-    def bakeTimeshift(self):
+    def bakePhase(self):
         self._checkBackwardsCompatibility()
         ''' Check input data '''
         needed_data = [self.waveforms]
@@ -294,33 +292,33 @@ class CorrelationDataframe:
             return False
         ''' Compute time shift matrix '''
         self.preprocessWaveforms()
-        timeshift_data = processing.timeshiftMatrix(self.waveforms)
-        self.timeshift_data = timeshift_data
+        phase_data = processing.phaseMatrix(self.waveforms)
+        self.phase_data = phase_data
         self._onBakeFinish()
         return True
-    def exportTimeshift(self, destination=None, which=-1):
-        if not self._isExportReady(EXPORTS["TIMESHIFT"]):
+    def exportPhase(self, destination=None, which=-1):
+        if not self._isExportReady(EXPORTS["PHASE"]):
             colprint.printerr(MSG_EXPORT_FAILED)
             return False
         if which in [-1, 0]:
-            ''' which=0 : timeshift data '''
+            ''' which=0 : phase data '''
             datasets = []; sheet_names = []; titles = []
-            datasets.append(self.timeshift_data.matrix)      ; sheet_names.append("dt matrix"); titles.append("Computed dt matrix")
-            datasets.append(self.timeshift_data.correlation) ; sheet_names.append("Correlation"); titles.append("Correlation matrix of re-aligned signals")
-            destination = (self.file + '.timeshift.xlsx') if destination is None else destination
+            datasets.append(self.phase_data.matrix)      ; sheet_names.append("dt matrix"); titles.append("Computed dt matrix")
+            datasets.append(self.phase_data.correlation) ; sheet_names.append("Correlation"); titles.append("Correlation matrix of re-aligned signals")
+            destination = (self.file + '.phase.xlsx') if destination is None else destination
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
         return True
     def bakeOrder(self):
         self._checkBackwardsCompatibility()
         ''' Check input data '''
-        needed_data = [self.timeshift_data]
-        messages    = ["Timeshift data not baked."]
-        bakers      = [self.bakeTimeshift]
+        needed_data = [self.phase_data]
+        messages    = ["Phase data not baked."]
+        bakers      = [self.bakePhase]
         if not(self.checkDependencies(needed_data, messages, bakers)):
             return False
         ''' Compute order vector '''
         self.preprocessWaveforms()
-        order_data = processing.timeshiftOrder(self.timeshift_data.matrix, reference=self.parameters["hub_reference"])
+        order_data = processing.phaseOrder(self.phase_data.matrix, reference=self.parameters["hub_reference"])
         self.order_data = order_data
         self._onBakeFinish()
         return True
@@ -331,11 +329,9 @@ class CorrelationDataframe:
         if which in [-1, 0]:
             ''' which=0 : order data '''
             datasets = []; sheet_names = []; titles = []
-            datasets.append(self.order_data.series)            ; sheet_names.append("series")   ; titles.append("Timeshift vector sorted")
+            datasets.append(self.order_data.series)            ; sheet_names.append("series")   ; titles.append("Phase vector sorted")
             datasets.append(pd.Series(self.order_data.order))  ; sheet_names.append("order")    ; titles.append("Order")
-            datasets.append(pd.Series(self.order_data.values)) ; sheet_names.append("timeshift"); titles.append("Timeshift values")
-            # datasets.append(self.order_data.average)     ; sheet_names.append("average")  ; titles.append("Average timeshift")
-            # datasets.append(self.order_data.std)         ; sheet_names.append("std")      ; titles.append("SD of timeshift")
+            datasets.append(pd.Series(self.order_data.values)) ; sheet_names.append("phase"); titles.append("Phase values")
             destination = (self.file + '.order.xlsx') if destination is None else destination
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
         return True
@@ -416,7 +412,7 @@ class CorrelationDataframe:
         return True
 
 
-    def bakeRollingTimeshift(self):
+    def bakeRollingPhase(self):
         self._checkBackwardsCompatibility()
         ''' Check input data '''
         needed_data = [self.waveforms]
@@ -428,40 +424,40 @@ class CorrelationDataframe:
         window_samples = int(self.Fs * self.parameters["rolling_window_s"])
         overlap_percent = 75.
         overlap_samples = int(window_samples * overlap_percent/100.)
-        rolling_timeshift = processing.rollingTimeshift(self.waveforms, window_samples=window_samples, overlap_samples=overlap_samples)
-        self.rolling_timeshift_data = rolling_timeshift
+        rolling_phase = processing.rollingPhase(self.waveforms, window_samples=window_samples, overlap_samples=overlap_samples)
+        self.rolling_phase_data = rolling_phase
         self._onBakeFinish()
         return True
-    def exportRollingTimeshift(self, destination=None, which=-1):
-        if not self._isExportReady(EXPORTS["ROLLINGTIMESHIFT"]):
+    def exportRollingPhase(self, destination=None, which=-1):
+        if not self._isExportReady(EXPORTS["ROLLINGPHASE"]):
             colprint.printerr(MSG_EXPORT_FAILED)
             return False
         if which in [-1, 0]:
-            ''' which=0 : all timeshift data (all windows)'''
-            W = len(self.rolling_timeshift_data)
+            ''' which=0 : all phase data (all windows)'''
+            W = len(self.rolling_phase_data)
             datasets = []; sheet_names = []; titles = []
             # Data sheets
             datasets.append(pd.DataFrame({'Phase': [f"Phase {i+1}-{W}" for i in range(W)], 'Correlation': [f"Correlation {i+1}-{W}" for i in range(W)]}))
             sheet_names.append("Windowed data")
             titles.append("List of worksheets for windowed data")
             # Phase matrices
-            for i,td in enumerate(self.rolling_timeshift_data):
+            for i,td in enumerate(self.rolling_phase_data):
                 datasets.append(td.matrix) ; sheet_names.append(f"Phase {i+1}-{W}")   ; titles.append(f"Phase matrix (samples) in window #{i+1}/{W} : Samples {td.interval} / Period ({td.interval[0]/self.Fs},{td.interval[1]/self.Fs}) s")
                 # Correlation matrices
-            for i,td in enumerate(self.rolling_timeshift_data):
+            for i,td in enumerate(self.rolling_phase_data):
                 datasets.append(td.correlation) ; sheet_names.append(f"Correlation {i+1}-{W}")   ; titles.append(f"Correlation matrix in window #{i+1}/{W} : Samples {td.interval} / Period ({td.interval[0]/self.Fs},{td.interval[1]/self.Fs}) s")
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, analyzer=self)
         return True
     def bakeRollingOrder(self):
         self._checkBackwardsCompatibility()
         ''' Check input data '''
-        needed_data = [self.rolling_timeshift_data]
-        messages    = ["Rolling timeshift not baked."]
-        bakers      = [self.bakeRollingTimeshift]
+        needed_data = [self.rolling_phase_data]
+        messages    = ["Rolling phase not baked."]
+        bakers      = [self.bakeRollingPhase]
         if not(self.checkDependencies(needed_data, messages, bakers)):
             return False
         self.preprocessWaveforms()
-        rolling_order = processing.rollingOrder(self.rolling_timeshift_data, reference=self.parameters["hub_reference"])
+        rolling_order = processing.rollingOrder(self.rolling_phase_data, reference=self.parameters["hub_reference"])
         self.rolling_order_data = rolling_order
         self.order_stats = processing.order_matrix(rolling_order)
         self._onBakeFinish()
@@ -536,17 +532,17 @@ class CorrelationDataframe:
             string += "Rolling correlation not baked.\n"
         else:
             string += "Rolling correlation baked.\n"
-        ''' Rolling timeshift data '''
-        if self.rolling_timeshift_data is None:
-            string += "Rolling timeshift not baked.\n"
+        ''' Rolling phase data '''
+        if self.rolling_phase_data is None:
+            string += "Rolling phase not baked.\n"
         else:
             channels = self.parameters["channel_filters"] if self.parameters["channel_filters"] else self.waveforms.keys()
-            string += "Rolling timeshift data :\n"
+            string += "Rolling phase data :\n"
             for k1 in channels:
                 for k2 in channels:
                     if k1 == k2:
                         continue
-                    data = [rtd.matrix[k1][k2] for rtd in self.rolling_timeshift_data]
+                    data = [rtd.matrix[k1][k2] for rtd in self.rolling_phase_data]
                     avg = np.mean(data) / self.parameters["processing_Fs"]
                     std = np.std(data) / self.parameters["processing_Fs"]
                     string += f"  {k1} - {k2} : {avg:>10.4f} +/- {std:>10.4f} ms\n"
@@ -565,7 +561,7 @@ class CorrelationDataframe:
                 string += line0_format.format(rank, *line0)
             header_format = "{:^5} " + "{:^7} "  *len(order_stats.percentage.columns) + "\n"
 
-            string += "\n  Average timeshift for each rank (xcorr, relative to identified first) : \n"
+            string += "\n  Average phase for each rank (xcorr, relative to identified first) : \n"
             header_format = "{:^5} " + "{:^11} "  *len(order_stats.percentage.columns) + "\n"
             string += header_format.format("", *order_stats.percentage.columns)
             for rank in order_stats.percentage.index:
@@ -602,30 +598,30 @@ class CorrelationDataframe:
             representations.animate_rollingCorrelation(self.rolling_correlation_data, self.waveforms, Fs=self.Fs)
         if which in [-1,0]:
             plt.show(block=False)
-    def drawRollingTimeshift(self, which=-1):
+    def drawRollingPhase(self, which=-1):
         MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
-        if self._isPlotReady(PLOTS["ROLLINGTIMESHIFT"]) and which in[-1,0]:
-            representations.animate_rollingTimeshift(self.rolling_timeshift_data, self.waveforms, Fs=self.Fs)
-        if self._isPlotReady(PLOTS["ROLLINGTIMESHIFTSPATIAL"]) and which in[-1,1]:
-            representations.animate_rollingTimeshiftSpatial(self.rolling_timeshift_data, MEA_layout, self.waveforms, Fs=self.Fs)
-        if self._isPlotReady(PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"]) and which in[-1,2]:
-            representations.drawRollingTimeshiftSpatial(
-                self.rolling_timeshift_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
+        if self._isPlotReady(PLOTS["ROLLINGPHASE"]) and which in[-1,0]:
+            representations.animate_rollingPhase(self.rolling_phase_data, self.waveforms, Fs=self.Fs)
+        if self._isPlotReady(PLOTS["ROLLINGPHASESPATIAL"]) and which in[-1,1]:
+            representations.animate_rollingPhaseSpatial(self.rolling_phase_data, MEA_layout, self.waveforms, Fs=self.Fs)
+        if self._isPlotReady(PLOTS["ROLLINGPHASESPATIALSTATIC"]) and which in[-1,2]:
+            representations.drawRollingPhaseSpatial(
+                self.rolling_phase_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
                 contour=True, contourlabels=True, contourmap=None,
                 fill=False, fillmap=None)
-        if self._isPlotReady(PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"]) and which in[-1,3]:
-            representations.drawRollingTimeshiftSpatial(
-                self.rolling_timeshift_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
+        if self._isPlotReady(PLOTS["ROLLINGPHASESPATIALSTATIC"]) and which in[-1,3]:
+            representations.drawRollingPhaseSpatial(
+                self.rolling_phase_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
                 contour=True, contourlabels=False, contourmap="rainbow_r",
                 fill=False, fillmap="rainbow_r")
-        if self._isPlotReady(PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"]) and which in[-1,4]:
-            representations.drawRollingTimeshiftSpatial(
-                self.rolling_timeshift_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
+        if self._isPlotReady(PLOTS["ROLLINGPHASESPATIALSTATIC"]) and which in[-1,4]:
+            representations.drawRollingPhaseSpatial(
+                self.rolling_phase_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
                 contour=True, contourlabels=False, contourmap=None,
                 fill=True, fillmap="rainbow_r")
-        if self._isPlotReady(PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"]) and which in[-1,5]:
-            representations.drawRollingTimeshiftSpatial(
-                self.rolling_timeshift_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
+        if self._isPlotReady(PLOTS["ROLLINGPHASESPATIALSTATIC"]) and which in[-1,5]:
+            representations.drawRollingPhaseSpatial(
+                self.rolling_phase_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
                 contour=False, contourlabels=False, contourmap=None,
                 fill=True, fillmap="rainbow_r")
         if which in [-1,0,1,2,3,4,5]:
@@ -670,15 +666,15 @@ class CorrelationDataframe:
             )
         # SPATIAL
         if self._isPlotReady(PLOTS["ROLLINGORDERSPATIAL"]) and which in [-1,8]:
-            representations.animate_rollingOrderSpatial(self.rolling_order_data, self.rolling_timeshift_data, MEA_layout, self.waveforms, Fs=self.Fs, speed=False, env=self.parameters['environment'])
+            representations.animate_rollingOrderSpatial(self.rolling_order_data, self.rolling_phase_data, MEA_layout, self.waveforms, Fs=self.Fs, speed=False, env=self.parameters['environment'])
         # ---
         if which in [-1,0,1,2,3,4,5,6,7,8]:
             plt.show(block=False)
 
-    def drawTimeshift(self, which=-1):
-        if self._isPlotReady(PLOTS["TIMESHIFT"]) and which in [-1,0]:
+    def drawPhase(self, which=-1):
+        if self._isPlotReady(PLOTS["PHASE"]) and which in [-1,0]:
             MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
-            representations.drawTimeshiftSpatial(self.timeshift_data.matrix, MEA_layout, Fs=self.Fs)
+            representations.drawPhaseSpatial(self.phase_data.matrix, MEA_layout, Fs=self.Fs)
         if which in [-1,0]:
             plt.show(block=False)
     ''' Parameter handling '''
@@ -711,19 +707,19 @@ class CorrelationDataframe:
             return bool(self.correlation_data)
         if which == PLOTS["DENDROGRAM"]:
             return bool(self.correlation_data and self.clustering_data)
-        if which == PLOTS["TIMESHIFT"]:
-            return bool(self.timeshift_data)
+        if which == PLOTS["PHASE"]:
+            return bool(self.phase_data)
         if which == PLOTS["ROLLINGCORRELATION"]:
             return bool(self.rolling_correlation_data and self.waveforms)
-        if which == PLOTS["ROLLINGTIMESHIFT"]:
-            return bool(self.rolling_timeshift_data and self.waveforms)
-        if which == PLOTS["ROLLINGTIMESHIFTSPATIAL"]:
+        if which == PLOTS["ROLLINGPHASE"]:
+            return bool(self.rolling_phase_data and self.waveforms)
+        if which == PLOTS["ROLLINGPHASESPATIAL"]:
             return False # todo : refine this representation
-            # return bool(self.rolling_timeshift_data and self.waveforms)
-        if which == PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"]:
-            return bool(self.rolling_timeshift_data and self.waveforms)
+            # return bool(self.rolling_phase_data and self.waveforms)
+        if which == PLOTS["ROLLINGPHASESPATIALSTATIC"]:
+            return bool(self.rolling_phase_data and self.waveforms)
         if which == PLOTS["ROLLINGORDERSPATIAL"]:
-            return bool(self.rolling_order_data and self.rolling_timeshift_data and self.waveforms)
+            return bool(self.rolling_order_data and self.rolling_phase_data and self.waveforms)
         if which == PLOTS["ROLLINGORDERBAR"]:
             return bool(self.order_stats)
         if which == PLOTS["ROLLINGORDERPIE"]:
@@ -738,16 +734,16 @@ class CorrelationDataframe:
             return False
         if which == EXPORTS["DENDROGRAM"]:
             return False
-        if which == EXPORTS["TIMESHIFT"]:
-            return bool(self.timeshift_data)
+        if which == EXPORTS["PHASE"]:
+            return bool(self.phase_data)
         if which == EXPORTS["ORDER"]:
             return bool(self.order_data)
         if which == EXPORTS["CLUSTERING"]:
             return bool(self.clustering_data)
         if which == EXPORTS["ROLLINGCORRELATION"]:
             return bool(self.rolling_correlation_data)
-        if which == EXPORTS["ROLLINGTIMESHIFT"]:
-            return bool(self.rolling_timeshift_data)
+        if which == EXPORTS["ROLLINGPHASE"]:
+            return bool(self.rolling_phase_data)
         if which == EXPORTS["ROLLINGORDER"]:
             return bool(self.rolling_order_data)
         return False
