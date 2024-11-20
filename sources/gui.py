@@ -443,6 +443,8 @@ if __name__ == "__main__":
     add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Rolling order stats : pie graph (highlight #1-2)", lambda: ENGINE.drawRollingOrderStats(6) , engine.PLOTS["ROLLINGORDERPIE"])
     add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Rolling order stats : pie graph (highlight #1-3)", lambda: ENGINE.drawRollingOrderStats(7) , engine.PLOTS["ROLLINGORDERPIE"])
     add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Rolling order spatial (animation)"               , lambda: ENGINE.drawRollingOrderStats(8) , engine.PLOTS["ROLLINGORDERSPATIAL"])
+    add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Succession of leaders over time"                 , lambda: ENGINE.drawRollingOrderStats(9) , engine.PLOTS["ROLLINGORDERTEMPORAL"])
+    add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Succession of leaders over time (spatial)"       , lambda: ENGINE.drawRollingOrderStats(10), engine.PLOTS["ROLLINGORDERTEMPORAL"])
     add_plot_entry(analyses_widgets["CLUSTERING"]["show_button"]        , "Clustered events"                                , lambda: ENGINE.drawClustering(0)        , engine.PLOTS["CLUSTEREDEVENTS"       ])
     add_plot_entry(analyses_widgets["CLUSTERING"]["show_button"]        , "Dendrogram"                                      , lambda: ENGINE.drawClustering(1)        , engine.PLOTS["DENDROGRAM"            ])
     add_plot_entry(analyses_widgets["CLUSTERING"]["show_button"]        , "Clusters (spatial)"                              , lambda: ENGINE.drawClustering(2)        , engine.PLOTS["CLUSTERSSPATIAL"       ])

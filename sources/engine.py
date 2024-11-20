@@ -26,6 +26,7 @@ PLOTS["ROLLINGORDERBAR"]               = 10
 PLOTS["ROLLINGORDERPIE"]               = 11
 PLOTS["CLUSTERSSPATIAL"]               = 12
 PLOTS["CORRELATIONSPATIAL"]            = 13
+PLOTS["ROLLINGORDERTEMPORAL"]          = 14
 
 EXPORTS = {}
 EXPORTS["CORRELATIONMATRIX"]      = 0
@@ -113,6 +114,7 @@ class CorrelationDataframe:
         self.rolling_phase_data = None
         self.rolling_order_data = None
         self.order_stats = None
+        self.leader_periods = None
     def resetClusteringData(self):
         self.clustering_data = None
         self.clusters = None # legacy; todo : remove me
@@ -461,6 +463,7 @@ class CorrelationDataframe:
         rolling_order = processing.rollingOrder(self.rolling_phase_data, reference=self.parameters["hub_reference"])
         self.rolling_order_data = rolling_order
         self.order_stats = processing.order_matrix(rolling_order)
+        self.leader_periods = processing.get_periods_as_leader(rolling_order)
         self._onBakeFinish()
         return True
     def exportRollingOrder(self, destination=None, which=-1):
@@ -468,12 +471,17 @@ class CorrelationDataframe:
             colprint.printerr(MSG_EXPORT_FAILED)
             return False
         order_stats = self.order_stats
+        leader_periods = self.leader_periods.copy()
+        leader_periods["start"]    /= self.Fs
+        leader_periods["end"]      /= self.Fs
+        leader_periods["duration"] /= self.Fs
         if which in [-1, 0]:
             datasets = []; sheet_names = []; titles = []
             datasets.append(order_stats.percentage)                  ; sheet_names.append("percentage"); titles.append("Fraction of time at rank #i (%)")
             datasets.append(1000. * order_stats.dt / self.Fs)        ; sheet_names.append("dt_avg")    ; titles.append("Average lag behind leader (ms)")
             datasets.append(1000. * order_stats.dt_std / self.Fs)    ; sheet_names.append("dt_std")    ; titles.append("STD lag behind leader (ms)")
             datasets.append(order_stats.N)                           ; sheet_names.append("N")         ; titles.append(f"Number of times at rank #i (out of {order_stats.Ntotal} total)")
+            datasets.append(leader_periods)                          ; sheet_names.append("leaders")   ; titles.append("List of periods where a channel remained the leader, with timesamps and durations (s)")
             destination = (self.file + '.order_stats.xlsx') if destination is None else destination
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
         return True
@@ -668,8 +676,13 @@ class CorrelationDataframe:
         # SPATIAL
         if self._isPlotReady(PLOTS["ROLLINGORDERSPATIAL"]) and which in [-1,8]:
             representations.animate_rollingOrderSpatial(self.rolling_order_data, self.rolling_phase_data, MEA_layout, self.waveforms, Fs=self.Fs, speed=False, env=self.parameters['environment'])
+        # TEMPORAL
+        if self._isPlotReady(PLOTS["ROLLINGORDERTEMPORAL"]) and which in [-1,9]:
+            representations.drawLeaderSuccession(self.rolling_order_data, Fs=self.parameters["processing_Fs"])
+        if self._isPlotReady(PLOTS["ROLLINGORDERTEMPORAL"]) and which in [-1,10]:
+            representations.drawLeaderSuccession2D(self.rolling_order_data, layout=MEA_layout, mode="arrows", Fs=self.parameters["processing_Fs"])
         # ---
-        if which in [-1,0,1,2,3,4,5,6,7,8]:
+        if which in [-1,0,1,2,3,4,5,6,7,8,9,10]:
             plt.show(block=False)
 
     def drawPhase(self, which=-1):
@@ -725,6 +738,8 @@ class CorrelationDataframe:
             return bool(self.order_stats)
         if which == PLOTS["ROLLINGORDERPIE"]:
             return bool(self.order_stats)
+        if which == PLOTS["ROLLINGORDERTEMPORAL"]:
+            return bool(self.rolling_order_data)
         if which == PLOTS["CLUSTERSSPATIAL"]:
             return bool(self.correlation_data and self.clustering_data)
         return False

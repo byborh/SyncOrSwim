@@ -269,6 +269,47 @@ def order_matrix(rolling_order):
     order_stats = namedtuple("Order_Stats", ["percentage", "dt", "dt_std", "N", "Ntotal"])
     return order_stats(percentage, dt_avg, dt_std, occurences, len(rolling_order))
 
+def get_periods_as_leader(rolling_order_data):
+    """ Get periods where a channel remained the leader
+    Results are returned in a table (pandas.DataFrame) where 
+    period properties (start timestamp, end timestamp, duration) 
+    are provided in samples; each line is a period with a new leader
+    """
+    
+    Nsamples = len(rolling_order_data)
+    channels = rolling_order_data[0].series.index
+    lead_vector = [x.order[0] if x.order else None for x in rolling_order_data] # What channel was ther leader at each time step
+    
+    periods_as_leader_tabular = {'channel':[], 'start':[], 'end':[], 'duration':[]}
+    current_leader   = None
+    current_start    = None
+    current_end      = None
+    current_duration = None
+    new_leader       = None
+
+    for i,step in enumerate(rolling_order_data):
+        new_leader = step.order[0] if step.order else None
+        if i == 0:
+            # Initialization
+            current_start = step.interval[1]
+            current_leader = step.order[0] if step.order else None
+        if new_leader != current_leader:
+            # if switching leader (from one to another / from one to None / from None to one), mark the end of the period and calculate period duration
+            # print(f'Step {i}/{Nsamples} : switch from {current_leader} to {new_leader}') # debug msg
+            current_end = step.interval[1]
+            current_duration = current_end - current_start
+            # Log the period in the table
+            periods_as_leader_tabular['channel'].append(current_leader)
+            periods_as_leader_tabular['start'].append(current_start)
+            periods_as_leader_tabular['end'].append(current_end)
+            periods_as_leader_tabular['duration'].append(current_duration)
+            # Set new start/leader markers for a new period
+            current_start = current_end
+            current_leader = new_leader
+    periods_as_leader_df = pd.DataFrame(periods_as_leader_tabular)
+    
+    return periods_as_leader_df
+
 def rolling_RMS(waveforms, window_samples=10):
     N = 0
     for i,k in enumerate(waveforms):
@@ -334,6 +375,7 @@ def percentile_hysteresis(waveforms, threshold_up=70, threshold_dn=30):
                 state = 0
             output[k].append(state)
     return output
+
 def get_phase(X, Y):
     """ Fast, but not a real correlation output (?) """
     ''' Normalize data '''

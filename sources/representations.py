@@ -20,6 +20,7 @@ CMAP_ISOCHRONES = "rainbow_r"
 CMAP_ORDER_PIE = 'rainbow'
 CMAP_ORDER_BARGRAPH = 'rainbow'
 CMAP_ORDER_SPATIAL = 'copper'
+CMAP_ORDER_SUCCESSION = 'jet'
 
 def _unitmgr(Fs, unit="s", magnitude="m"):
     prefixes = {}
@@ -570,6 +571,112 @@ def drawOrderPie(order_stats, layout, timeinfo=False, Fs=None, ax=None, distance
     ax.set_ylabel("[µm]")
     ax.set_title("Channel ranking repartition (spatial)")
     return ax.get_figure()
+
+def drawLeaderSuccession(rolling_order_data, Fs=1.):
+    channels = rolling_order_data[0].series.index
+    Nchannels = len(channels)
+    h = plt.figure(figsize=(6.4, 0.7 + .2*Nchannels))
+    a = h.add_subplot(111)
+
+    Ts = 1. / Fs
+    lead_vector = [x.order[0] if x.order else None for x in rolling_order_data] # What channel was ther leader at each time step
+    time_vector = [x.interval[1]*Ts for x in rolling_order_data]
+    yticks = []
+    for i,ch in enumerate(channels) :
+        islead_vector = np.asarray([1. * (leader == ch) for leader in lead_vector])
+        islead_indexes = np.where(islead_vector)[0]
+        yticks.append(i*1.5)
+        # a.step(time_vector, yticks[-1] + islead_vector, color="black")
+        a.plot(time_vector, [yticks[-1]]*len(time_vector), color='lightgrey', ls=':')
+        a.scatter([time_vector[x] for x in islead_indexes], [yticks[-1]]*len(islead_indexes), color='black')
+    a.set_title("Leaders over time")
+    a.set_xlabel("Time (s)")
+    a.set_ylabel("Channels")
+    a.set_yticks(yticks)
+    a.set_yticklabels(channels)
+    return h
+
+def drawLeaderSuccession2D(rolling_order_data, layout, mode="arrows", Fs=1., ax=None):
+    """ Draws the path taken by leaders over time
+    mode = arrows / path
+        arrows : draws arrows between channels ; plain line means direct succession of leaders, dotted line means that succession was discontinuous (no leader between successive leaders)
+        path   : draws the path taken by leaders, smoothed a little bit
+    """
+    channels = rolling_order_data[0].series.index
+    Nchannels = len(channels)
+    Nsamples = len(rolling_order_data)
+    lead_vector = [x.order[0] if x.order else None for x in rolling_order_data] # What channel was ther leader at each time step
+
+    if ax is None:
+        h  = plt.figure()
+        ax = h.add_subplot(111)
+    ax.set_title("Leader progression")
+    """ Draw MEA """
+    for e in layout.electrodes:
+        if not(e.draw):
+            continue
+        for i,c in enumerate(rolling_order_data[0].series.index):
+            if e.label in c:
+                color = "black"
+                break
+        else:
+            color = "lightgrey"
+            i = -1
+        ax.plot(e.position.x, e.position.y, 'o', color=color, ms=10, alpha=1.0)
+    ax.axis('equal')
+    """ Draw arrows """
+    try: # HACK : Handle older versions of matplotlib constrained by Python 3.7
+        cmap = mpl.colormaps.get_cmap(CMAP_ORDER_SUCCESSION)
+    except:
+        cmap = mpl.cm.get_cmap(CMAP_ORDER_SUCCESSION)
+    if len(rolling_order_data) > 1:
+        # init start channel, if it exists at step 0
+        start_ch = None
+        end_ch = None
+        if rolling_order_data[0].order:
+            start_ch = rolling_order_data[0].order[0]
+        discontinuous = False
+        path_xpoints = []
+        path_ypoints = []
+        Nsmooth = 10
+        # iterate through result steps
+        for i,step in enumerate(rolling_order_data[1:]):
+            if step.order:
+                end_ch = step.order[0]
+            else:
+                discontinuous = True
+                continue
+            if end_ch:
+                coords_start = layout.getElectrode(start_ch).position
+                coords_end   = layout.getElectrode(end_ch).position
+                coords_diff  = coords_end - coords_start
+                if mode == "arrows" :
+                    ax.arrow(coords_start.x, coords_start.y, coords_diff.x, coords_diff.y, color=cmap(i/Nsamples), width=2, linestyle='--' if discontinuous else '-', length_includes_head=True, zorder=100, alpha=.75)
+                path_xpoints.extend(np.linspace(coords_start.x, coords_end.x, Nsmooth).tolist())
+                path_ypoints.extend(np.linspace(coords_start.y, coords_end.y, Nsmooth).tolist())
+                start_ch = end_ch
+                end_ch = None
+                discontinuous = False # Reset discontinuous
+        # Filter path for visibility
+        box_pts = Nsmooth
+        box = np.ones(box_pts)/box_pts
+        path_xpoints = np.convolve(path_xpoints, box, mode='same')
+        path_ypoints = np.convolve(path_ypoints, box, mode='same')
+
+        if mode == "path":
+            ax.plot(path_xpoints, path_ypoints, color='red')
+            ax.quiver(path_xpoints[:-1], 
+                      path_ypoints[:-1], 
+                      path_xpoints[1:]-path_xpoints[:-1], 
+                      path_ypoints[1:]-path_ypoints[:-1], 
+                      scale_units='xy', angles='xy', scale=1, width=0.005, color="red")
+
+        if mode == "arrows":
+            norm = mpl.colors.Normalize(vmin=rolling_order_data[0].interval[1]/Fs, vmax=rolling_order_data[-1].interval[1]/Fs)
+            plt.colorbar(mappable=mpl.cm.ScalarMappable(norm=norm, cmap=cmap), ax=ax, label="Time [s]")
+        ax.set_xlabel("[µm]")
+        ax.set_ylabel("[µm]")
+    return h
 
 def drawCorrelationSpatial(correlation_data, layout, threshold=0.5, ax=None, labels=True, lw=1.):
     if ax is None:
