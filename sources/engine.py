@@ -460,10 +460,12 @@ class CorrelationDataframe:
         if not(self.checkDependencies(needed_data, messages, bakers)):
             return False
         self.preprocessWaveforms()
+        MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
         rolling_order = processing.rollingOrder(self.rolling_phase_data, reference=self.parameters["hub_reference"])
         self.rolling_order_data = rolling_order
         self.order_stats = processing.order_matrix(rolling_order)
         self.leader_periods = processing.get_periods_as_leader(rolling_order)
+        self.leader_distances = processing.get_distance_between_successive_leaders(rolling_order, layout=MEA_layout)
         self._onBakeFinish()
         return True
     def exportRollingOrder(self, destination=None, which=-1):
@@ -475,13 +477,18 @@ class CorrelationDataframe:
         leader_periods["start"]    /= self.Fs
         leader_periods["end"]      /= self.Fs
         leader_periods["duration"] /= self.Fs
+        leader_distances = self.leader_distances.copy()
+        leader_distances["start"]    /= self.Fs
+        leader_distances["end"]      /= self.Fs
+        leader_distances["duration"] /= self.Fs
         if which in [-1, 0]:
             datasets = []; sheet_names = []; titles = []
-            datasets.append(order_stats.percentage)                  ; sheet_names.append("percentage"); titles.append("Fraction of time at rank #i (%)")
-            datasets.append(1000. * order_stats.dt / self.Fs)        ; sheet_names.append("dt_avg")    ; titles.append("Average lag behind leader (ms)")
-            datasets.append(1000. * order_stats.dt_std / self.Fs)    ; sheet_names.append("dt_std")    ; titles.append("STD lag behind leader (ms)")
-            datasets.append(order_stats.N)                           ; sheet_names.append("N")         ; titles.append(f"Number of times at rank #i (out of {order_stats.Ntotal} total)")
-            datasets.append(leader_periods)                          ; sheet_names.append("leaders")   ; titles.append("List of periods where a channel remained the leader, with timesamps and durations (s)")
+            datasets.append(order_stats.percentage)                  ; sheet_names.append("percentage")       ; titles.append("Fraction of time at rank #i (%)")
+            datasets.append(1000. * order_stats.dt / self.Fs)        ; sheet_names.append("dt_avg")           ; titles.append("Average lag behind leader (ms)")
+            datasets.append(1000. * order_stats.dt_std / self.Fs)    ; sheet_names.append("dt_std")           ; titles.append("STD lag behind leader (ms)")
+            datasets.append(order_stats.N)                           ; sheet_names.append("N")                ; titles.append(f"Number of times at rank #i (out of {order_stats.Ntotal} total)")
+            datasets.append(leader_periods)                          ; sheet_names.append("leaders")          ; titles.append("List of periods where a channel remained the leader, with timesamps and durations (s)")
+            datasets.append(leader_distances)                        ; sheet_names.append("leader_distances") ; titles.append("Distances between successive leaders ; timestamps and durations in seconds, distances typ. in micrometers (same units as MEA file)")
             destination = (self.file + '.order_stats.xlsx') if destination is None else destination
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
         return True
@@ -675,7 +682,7 @@ class CorrelationDataframe:
             )
         # SPATIAL
         if self._isPlotReady(PLOTS["ROLLINGORDERSPATIAL"]) and which in [-1,8]:
-            representations.animate_rollingOrderSpatial(self.rolling_order_data, self.rolling_phase_data, MEA_layout, self.waveforms, Fs=self.Fs, speed=False, env=self.parameters['environment'])
+            representations.animate_rollingOrderSpatial(self.rolling_order_data, self.rolling_phase_data, MEA_layout, self.waveforms, Fs=self.parameters["processing_Fs"], speed=False, env=self.parameters['environment'])
         # TEMPORAL
         if self._isPlotReady(PLOTS["ROLLINGORDERTEMPORAL"]) and which in [-1,9]:
             representations.drawLeaderSuccession(self.rolling_order_data, Fs=self.parameters["processing_Fs"])

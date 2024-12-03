@@ -310,6 +310,42 @@ def get_periods_as_leader(rolling_order_data):
     
     return periods_as_leader_df
 
+def get_distance_between_successive_leaders(rolling_order_data, layout):
+    """ Get periods where a channel remained the leader and computes distances between successive leaders
+    Results are returned in a table (pandas.DataFrame) where period properties (start timestamp, end timestamp, duration) 
+    are provided in samples; each line is a period with a new leader; distances and (x,y) positions are provided
+    in the same units defined in Hardware/MEA files (typ. µm)
+    """
+
+    periods_as_leader_df = get_periods_as_leader(rolling_order_data)
+    distance_between_leaders = {**{c : [] for c in periods_as_leader_df.columns}, 'previous_leader':[], 'current_leader':[], 'position_origin':[], 'position_destination':[], 'position_delta':[], 'distance':[]}
+
+    for i,idx in enumerate(periods_as_leader_df.index):
+        for c in periods_as_leader_df.columns:
+            value = periods_as_leader_df.loc[i,c]
+            distance_between_leaders[c].append(value)
+            
+        current_leader = periods_as_leader_df.loc[idx,"channel"]
+        previous_leader = None if i == 0 else periods_as_leader_df.iloc[i-1].loc["channel"]
+        
+        position_origin_ = None if previous_leader is None else layout.getElectrode(previous_leader).position
+        position_destination_ = None if current_leader is None else layout.getElectrode(current_leader).position
+        position_delta_ = None if ((current_leader is None) or (previous_leader is None)) else position_destination_ - position_origin_
+        
+        position_origin      = (None, None) if position_origin_ is None else (position_origin_.x, position_origin_.y)
+        position_destination = (None, None) if position_destination_ is None else (position_destination_.x, position_destination_.y)
+        position_delta       = (None, None) if position_delta_ is None else (position_delta_.x, position_delta_.y)
+        distance             = None if position_delta_ is None else position_delta_.norm()
+        
+        distance_between_leaders["previous_leader"].append(previous_leader)
+        distance_between_leaders["current_leader"].append(current_leader)
+        distance_between_leaders["position_origin"].append(position_origin)
+        distance_between_leaders["position_destination"].append(position_destination)
+        distance_between_leaders["position_delta"].append(position_delta)
+        distance_between_leaders["distance"].append(distance)
+    
+    return pd.DataFrame(distance_between_leaders)
+
 def rolling_RMS(waveforms, window_samples=10):
     N = 0
     for i,k in enumerate(waveforms):
