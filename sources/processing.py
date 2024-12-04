@@ -18,10 +18,13 @@ def pbar(*args, **kwargs):
     progressbar.inlineCycles(*args, **kwargs)
 
 def verbosePrint(str, verbose=True):
+    """ Prints message only if verbose is True """
     if verbose:
         print(str)
 
 def map_to_dict(function, dictionary, *args, **kwargs):
+    """ Applies a function on every element of a dict, returns all values in a dict of similar structure """
+    ''' Argument "progress_message" enables a progress bar with a custom message '''
     if 'progress_message' in kwargs:
         progress_message = kwargs['progress_message']
         kwargs.pop('progress_message')
@@ -45,12 +48,13 @@ def apply_rolling(func1d, array1d, window_samples, shift_samples, *args, **kwarg
     array2d = array1d[idx_array]
     return func1d(array2d, *args, **kwargs)
     # return np.apply_along_axis(func1d, arr=array2d, axis=1, *args, **kwargs)
-
-def eventWaveforms(timestamps={}, sigma_samples=1):
+def eventWaveforms(timestamps=None, sigma_samples=1):
+    """ Generates a time signal from events by convolving with gaussian bells """
     ''' <timestamps> is a dictionary of timestamp lists  '''
     ''' (one item is all the timestamps from one source) '''
     ''' Everything is unitless (indexes)                 '''
-    Nsources = len(timestamps)
+    if timestamps is None:
+        timestamps = {}
     Nsigma = 10 # This multiplied by sigma_samples is the number of points generated left and right of the gaussian's center
 
     ''' Get max timestamp '''
@@ -71,14 +75,19 @@ def eventWaveforms(timestamps={}, sigma_samples=1):
         allGaussEvents[k] = 1.*gaussEvents
     return allGaussEvents
 
-def correlationMatrix(signals={}):
+def correlationMatrix(signals=None):
+    """ Calculates the correlation matrix for a dict of signals ({label : 1darray}) """
+    if signals is None:
+        signals = {}
     data = pd.DataFrame.from_dict(signals)
     correlationMatrix = data.corr()
     correlationMatrix = correlationMatrix.fillna(0)
     correlation_data = namedtuple("Correlation_Data", "matrix")
     return correlation_data(correlationMatrix)
 
-def granger_causality_matrix(signals={}, maxlag_samples=150):
+def granger_causality_matrix(signals=None, maxlag_samples=150):
+    if signals is None:
+        signals = {}
     data = pd.DataFrame.from_dict(signals)
     N = len(signals)
     channels = [k for k in signals]
@@ -95,8 +104,10 @@ def granger_causality_matrix(signals={}, maxlag_samples=150):
             matrix.loc[r,c] = min_p_value
     correlation_data = namedtuple("Correlation_Data", "matrix")
     return correlation_data(matrix)
-
-def rollingCorrelation(signals={}, window_samples=10, overlap_samples=5):
+def rollingCorrelation(signals=None, window_samples=10, overlap_samples=5):
+    """ Calculates windowed correlation matrices for a dict of signals """
+    if signals is None:
+        signals = {}
     N = 0
     for k in signals:
         N = len(signals[k])
@@ -122,49 +133,54 @@ def rollingCorrelation(signals={}, window_samples=10, overlap_samples=5):
 
     return output
 
-def rollingTimeshift(signals={}, window_samples=10, overlap_samples=7):
+def rollingPhase(signals=None, window_samples=10, overlap_samples=7):
+    """ Calculates windowed phase between signals """
+    if signals is None:
+        signals = {}
     L = len(signals)
     for k in signals:
         N = len(signals[k])
     output = []
 
     skip_samples    = int(window_samples - overlap_samples)
-    rolling_timeshift_data = namedtuple("Rolling_Timeshift_Data", ["matrix", "correlation", "interval"])
+    rolling_phase_data = namedtuple("Rolling_Phase_Data", ["matrix", "correlation", "interval"])
 
     i = 0
     j = i + window_samples
     if L <= 1: # Prevent some weird printing behaviour caused by pandas (?)
-        print(f"Rolling timeshift ... ", end="")
+        print(f"Rolling phase ... ", end="")
     while j < N:
         ''' Apply window to samples '''
         windowed_signals = {}
         for k in signals:
             windowed_signals[k] = 1 * np.asarray(signals[k])[i:j]
         ''' Compute correlation '''
-        timeshift = timeshiftMatrix(signals=windowed_signals)
-        output.append(rolling_timeshift_data(timeshift.matrix, timeshift.correlation, (i, j)))
+        phase = phaseMatrix(signals=windowed_signals)
+        output.append(rolling_phase_data(phase.matrix, phase.correlation, (i, j)))
         ''' Advance window '''
         i += skip_samples
         j = i + window_samples
         if L > 1: # Prevent some weird printing behaviour caused by pandas (?)
-            pbar(j, N, prefix='Rolling timeshift', done=f"Done (discarded {N-i} samples)")
+            pbar(j, N, prefix='Rolling phase', done=f"Done (discarded {N-i} samples)")
     if L <= 1: # Prevent some weird printing behaviour caused by pandas (?)
         print(f"Done (discarded {N-i} samples)")
     return output
 
-def rollingOrder(rolling_timeshift, reference=None):
-    N = len(rolling_timeshift)
+def rollingOrder(rolling_phase, reference=None):
+    """ Calculates the windowed order of activation from phase measurements """
+    N = len(rolling_phase)
     output = []
 
     rolling_order_data = namedtuple("Rolling_Order_Data", ["series", "order", "values", "interval"])
 
-    for i,timeshift in enumerate(rolling_timeshift):
-        order_data = timeshiftOrder(timeshift.matrix, reference=reference)
-        output.append(rolling_order_data(order_data.series, order_data.order, order_data.values, timeshift.interval))
+    for i,phase in enumerate(rolling_phase):
+        order_data = phaseOrder(phase.matrix, reference=reference)
+        output.append(rolling_order_data(order_data.series, order_data.order, order_data.values, phase.interval))
         pbar(i, N, prefix='Rolling order')
     return output
 
 def getClustering(dataframe, tolerance=None):
+    """ Performs hierarchical clustering from correlation matrix """
     matrix = dataframe.values
     labels = dataframe.columns
     linkage = spc.linkage(matrix, method='average')
@@ -179,7 +195,10 @@ def getClustering(dataframe, tolerance=None):
     clustering_data = namedtuple("Clustering_Data", ["linkage", "clusters", "labels"])
     return clustering_data(linkage, clusters, dataframe.columns)
 
-def timeshiftMatrix(signals={}, correlation_threshold=0.7):
+def phaseMatrix(signals=None, correlation_threshold=0.7):
+    """ Calculates the phase matrix between signals """
+    if signals is None:
+        signals = {}
     N = len(signals)
     DT = np.zeros((N,N))
     CO = np.zeros((N,N))
@@ -187,42 +206,42 @@ def timeshiftMatrix(signals={}, correlation_threshold=0.7):
         for j,k2 in enumerate(signals):
             sig1 = 1. * np.asarray(signals[k1])
             sig2 = 1. * np.asarray(signals[k2])
-            dt, co = get_timeshift(sig1, sig2)
+            dt, co = get_phase(sig1, sig2)
             DT[i,j] = dt if np.abs(co) > correlation_threshold else np.nan
             CO[i,j] = co
 
-    timeshift_data = namedtuple("Timeshift_MatrixData", ["matrix", "correlation"])
+    phase_data = namedtuple("Phase_MatrixData", ["matrix", "correlation"])
     matrix      = pd.DataFrame(DT, columns=signals.keys(), index=signals.keys())
     correlation = pd.DataFrame(CO, columns=signals.keys(), index=signals.keys())
-    return timeshift_data(matrix, correlation)
+    return phase_data(matrix, correlation)
 
-def timeshiftOrder(timeshift_matrix, reference=None):
+def phaseOrder(phase_matrix, reference=None):
+    """ Calculates the order of activation from a phase matrix """
     if reference == None:
-        reference = timeshift_matrix.columns[0]
-    timeshift_vector = timeshift_matrix[reference]
+        reference = phase_matrix.columns[0]
+    phase_vector = phase_matrix[reference]
     ''' Check that at least one element other than reference is not nan '''
     valid = False
-    for k in timeshift_vector.index:
-        if (k != reference) and not(np.isnan(timeshift_vector[k])):
+    for k in phase_vector.index:
+        if (k != reference) and not(np.isnan(phase_vector[k])):
             valid = True
     if not(valid):
-        timeshift_vector[reference] = np.nan
+        phase_vector[reference] = np.nan
     ''' continue '''
-    timeshift_values = [x for x in timeshift_vector if not(np.isnan(x))]
-    if len(timeshift_values) == 0:
-        timeshift_values.append(0)
-    timeshift_vector_pos = timeshift_vector - min(timeshift_values)
-    timeshift_vector_pos_sorted = timeshift_vector_pos.sort_values()
-    order_data = namedtuple("Timeshift_OrderData", ["series", "order", "values", "average", "std"])
-    order = [idx for idx in timeshift_vector_pos_sorted.index if not(np.isnan(timeshift_vector_pos_sorted[idx]))]
-    timeshift_values = [timeshift_vector_pos_sorted[idx] for idx in order]
-    timeshift_values_without_reference = [x for x,idx in zip(timeshift_values, order) if idx != reference]
-    average = np.average(timeshift_values_without_reference) if len(timeshift_values_without_reference) else np.nan
-    std     =     np.std(timeshift_values_without_reference) if len(timeshift_values_without_reference) else np.nan
-    return order_data(timeshift_vector_pos_sorted, order, timeshift_values, average, std)
+    phase_values = [x for x in phase_vector if not(np.isnan(x))]
+    if len(phase_values) == 0:
+        phase_values.append(0)
+    phase_vector_pos = phase_vector - min(phase_values)
+    phase_vector_pos_sorted = phase_vector_pos.sort_values()
+    order_data = namedtuple("Phase_OrderData", ["series", "order", "values", "average", "std"])
+    order = [idx for idx in phase_vector_pos_sorted.index if not(np.isnan(phase_vector_pos_sorted[idx]))]
+    phase_values = [phase_vector_pos_sorted[idx] for idx in order]
+    phase_values_without_reference = [x for x,idx in zip(phase_values, order) if idx != reference]
+    average = np.average(phase_values_without_reference) if len(phase_values_without_reference) else np.nan
+    std     =     np.std(phase_values_without_reference) if len(phase_values_without_reference) else np.nan
+    return order_data(phase_vector_pos_sorted, order, phase_values, average, std)
 
 def order_matrix(rolling_order):
-    # print(rolling_order)
     N = len(rolling_order[0].series) # Number of channels
     channels = rolling_order[0].series.index
     orders   = [f"#{i+1}" for i in range(N)]
@@ -239,12 +258,93 @@ def order_matrix(rolling_order):
             avg = np.mean(dt_values) if dt_values else 0
             std = np.std (dt_values) if dt_values else 0
             occ = sum(is_current_channel)
-            percentage[ch][n] = pc
-            dt_avg[ch][n]     = avg
-            dt_std[ch][n]     = std
-            occurences[ch][n] = occ
+            percentage.loc[n, ch] = pc
+            dt_avg.loc[n, ch]     = avg
+            dt_std.loc[n, ch]     = std
+            occurences.loc[n, ch] = occ
+            # percentage[ch][n] = pc
+            # dt_avg[ch][n]     = avg
+            # dt_std[ch][n]     = std
+            # occurences[ch][n] = occ
     order_stats = namedtuple("Order_Stats", ["percentage", "dt", "dt_std", "N", "Ntotal"])
     return order_stats(percentage, dt_avg, dt_std, occurences, len(rolling_order))
+
+def get_periods_as_leader(rolling_order_data):
+    """ Get periods where a channel remained the leader
+    Results are returned in a table (pandas.DataFrame) where 
+    period properties (start timestamp, end timestamp, duration) 
+    are provided in samples; each line is a period with a new leader
+    """
+    
+    Nsamples = len(rolling_order_data)
+    channels = rolling_order_data[0].series.index
+    lead_vector = [x.order[0] if x.order else None for x in rolling_order_data] # What channel was ther leader at each time step
+    
+    periods_as_leader_tabular = {'channel':[], 'start':[], 'end':[], 'duration':[]}
+    current_leader   = None
+    current_start    = None
+    current_end      = None
+    current_duration = None
+    new_leader       = None
+
+    for i,step in enumerate(rolling_order_data):
+        new_leader = step.order[0] if step.order else None
+        if i == 0:
+            # Initialization
+            current_start = step.interval[1]
+            current_leader = step.order[0] if step.order else None
+        if new_leader != current_leader:
+            # if switching leader (from one to another / from one to None / from None to one), mark the end of the period and calculate period duration
+            # print(f'Step {i}/{Nsamples} : switch from {current_leader} to {new_leader}') # debug msg
+            current_end = step.interval[1]
+            current_duration = current_end - current_start
+            # Log the period in the table
+            periods_as_leader_tabular['channel'].append(current_leader)
+            periods_as_leader_tabular['start'].append(current_start)
+            periods_as_leader_tabular['end'].append(current_end)
+            periods_as_leader_tabular['duration'].append(current_duration)
+            # Set new start/leader markers for a new period
+            current_start = current_end
+            current_leader = new_leader
+    periods_as_leader_df = pd.DataFrame(periods_as_leader_tabular)
+    
+    return periods_as_leader_df
+
+def get_distance_between_successive_leaders(rolling_order_data, layout):
+    """ Get periods where a channel remained the leader and computes distances between successive leaders
+    Results are returned in a table (pandas.DataFrame) where period properties (start timestamp, end timestamp, duration) 
+    are provided in samples; each line is a period with a new leader; distances and (x,y) positions are provided
+    in the same units defined in Hardware/MEA files (typ. µm)
+    """
+
+    periods_as_leader_df = get_periods_as_leader(rolling_order_data)
+    distance_between_leaders = {**{c : [] for c in periods_as_leader_df.columns}, 'previous_leader':[], 'current_leader':[], 'position_origin':[], 'position_destination':[], 'position_delta':[], 'distance':[]}
+
+    for i,idx in enumerate(periods_as_leader_df.index):
+        for c in periods_as_leader_df.columns:
+            value = periods_as_leader_df.loc[i,c]
+            distance_between_leaders[c].append(value)
+            
+        current_leader = periods_as_leader_df.loc[idx,"channel"]
+        previous_leader = None if i == 0 else periods_as_leader_df.iloc[i-1].loc["channel"]
+        
+        position_origin_ = None if previous_leader is None else layout.getElectrode(previous_leader).position
+        position_destination_ = None if current_leader is None else layout.getElectrode(current_leader).position
+        position_delta_ = None if ((current_leader is None) or (previous_leader is None)) else position_destination_ - position_origin_
+        
+        position_origin      = (None, None) if position_origin_ is None else (position_origin_.x, position_origin_.y)
+        position_destination = (None, None) if position_destination_ is None else (position_destination_.x, position_destination_.y)
+        position_delta       = (None, None) if position_delta_ is None else (position_delta_.x, position_delta_.y)
+        distance             = None if position_delta_ is None else position_delta_.norm()
+        
+        distance_between_leaders["previous_leader"].append(previous_leader)
+        distance_between_leaders["current_leader"].append(current_leader)
+        distance_between_leaders["position_origin"].append(position_origin)
+        distance_between_leaders["position_destination"].append(position_destination)
+        distance_between_leaders["position_delta"].append(position_delta)
+        distance_between_leaders["distance"].append(distance)
+    
+    return pd.DataFrame(distance_between_leaders)
 
 def rolling_RMS(waveforms, window_samples=10):
     N = 0
@@ -254,7 +354,6 @@ def rolling_RMS(waveforms, window_samples=10):
         N = len(waveforms[k])
 
     window = np.ones(window_samples)
-    # window = signal.triang(window_samples)
     window = window / sum(window) # normalize window
 
     ''' Compute Square, Mean, and Root separately for better performance '''
@@ -313,8 +412,7 @@ def percentile_hysteresis(waveforms, threshold_up=70, threshold_dn=30):
             output[k].append(state)
     return output
 
-
-def get_timeshift(X, Y):
+def get_phase(X, Y):
     """ Fast, but not a real correlation output (?) """
     ''' Normalize data '''
     x = 0 + np.asarray(X)
@@ -329,7 +427,6 @@ def get_timeshift(X, Y):
     n2 = max(Nx,Ny)
     Nmin = (n1 - 1) + np.ceil((n2 - n1)/2)
     Nmax = (n1 - 1) + np.floor((n2 - n1)/2)
-    minheight = int(0.1)
     ''' Compute xcorr '''
     xcorr = signal.correlate(x, y)
     xcorr = xcorr/n2
@@ -654,15 +751,22 @@ def LRT(data, distribution="norm", distribution_parameters=()):
     max_llx = sup_results.x[0]
     # print(f"LRT : Distribution is maximum at x={sup_results.x[0]}")
     return 2*(distribution.logpdf(max_llx, *distribution_parameters) - distribution.logpdf(data, *distribution_parameters))
-
-def filter_channels(data={}, filter=[]):
+def filter_channels(data=None, filter=None):
+    if data is None:
+        data = {}
+    if filter is None:
+        filter = []
     data_out = {}
     for k in data:
         if k in filter:
             data_out[k] = data[k]
     return data_out
 
-def exclude_channels(data={}, filter=[]):
+def exclude_channels(data=None, filter=None):
+    if data is None:
+        data = {}
+    if filter is None:
+        filter = []
     data_out = {}
     for k in data:
         if k not in filter:
@@ -701,7 +805,7 @@ def fast_downsample_waveforms(waveforms, fs_origin, fs_destination):
         x = 1. * np.asarray(x)
         ratio = int(ratio)
         return x[::ratio]
-    return map_to_dict(fast_downsample, waveforms, ratio=ratio, progress_message="Downsampling waveforms (fast)")
+    return map_to_dict(fast_downsample, waveforms, ratio=ratio, progress_message="Downsampling waveforms (fast, no interpolation)")
 
 def s2idx(timestamps, Fs):
     ''' Takes timestamps in [s] and converts them to integer indexes, assuming they are sampled at Fs [Hz] '''
@@ -721,7 +825,9 @@ def clean_timestamps(timestamps, verbose=True):
             verbosePrint("Warning : Removed channel {} because it was empty.".format(k), verbose)
     return new_timestamps
 
-def deepcopy_data(data={}):
+def deepcopy_data(data=None):
+    if data is None:
+        data = {}
     data_out = {}
     for k in data:
         data_out[k] = [d for d in data[k]]
@@ -729,21 +835,21 @@ def deepcopy_data(data={}):
 
 def relabel_data(data, rule):
     return {rule[k]: data[k] for k in data}
-    # output = {}
-    # for k in data:
-    #     if k in rule:
-    #         output[rule[k]] = data[k]
-    #     else:
-    #         print(f"Could not find key {k} in rule")
 
 """ FILTERING """
 
 class BPfilters:
-    def __init__(self, lp=[], hp=[], notch=[], filtertype='butterworth', Fs=0.5):
+    def __init__(self, lp=None, hp=None, notch=None, filtertype='butterworth', Fs=0.5):
         ''' lp = [(Fc0 , order0 ), ..., (Fcn , ordern )] '''
         ''' hp = [(Fc0', order0'), ..., (Fcn', ordern')] '''
         ''' notch = [(Fc0', Q0'), ..., (Fcn', Qn')] '''
         ''' filtertype = butterworth, bessel '''
+        if lp is None:
+            lp = []
+        if hp is None:
+            hp = []
+        if notch is None:
+            notch = []
         self.Fs = Fs
         self.filters = {}
         self.filters['lp'] = lp
@@ -840,6 +946,9 @@ class WLTdenoise:
         return datarec
 
 def generate_filter(filter_description):
+    """ Shorthand function to generate filters 
+    Expects a dict : {'family' : <filter family>, 'args' : <args passed to filter class constructor>} """
+    
     family = filter_description['family']
     if type(family) == str:
         if family in ['BP', 'bp', 'band-bass', 'BPfilters']:

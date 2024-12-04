@@ -196,12 +196,12 @@ if __name__ == "__main__":
     col = 0 ; row = 0
     add_analysis("CORRELATION"       , parent=analyses_labelframe, column=col, row=row, text="Correlation")        ; row += 1
     #add_analysis("GRANGER"           , parent=analyses_labelframe, column=col, row=row, text="Granger causality")  ; row += 1
-    add_analysis("TIMESHIFT"         , parent=analyses_labelframe, column=col, row=row, text="Phase")              ; row += 1
+    add_analysis("PHASE"             , parent=analyses_labelframe, column=col, row=row, text="Phase")              ; row += 1
     add_analysis("ORDER"             , parent=analyses_labelframe, column=col, row=row, text="Order")              ; row += 1
     add_analysis("ACTIVATIONORDER"   , parent=analyses_labelframe, column=col, row=row, text="Activation order")   ; row += 1
     add_analysis("CLUSTERING"        , parent=analyses_labelframe, column=col, row=row, text="Clustering")         ; col += 1; row=0
     add_analysis("ROLLINGCORRELATION", parent=analyses_labelframe, column=col, row=row, text="Rolling correlation"); row += 1
-    add_analysis("ROLLINGTIMESHIFT"  , parent=analyses_labelframe, column=col, row=row, text="Rolling phase")      ; row += 1
+    add_analysis("ROLLINGPHASE"      , parent=analyses_labelframe, column=col, row=row, text="Rolling phase")      ; row += 1
     add_analysis("ROLLINGORDER"      , parent=analyses_labelframe, column=col, row=row, text="Rolling order")      ; row += 1
 
     """ Analysis controls """
@@ -255,16 +255,17 @@ if __name__ == "__main__":
             ENGINE.resetTimestampData()
             ENGINE.resetWaveformData()
             ENGINE.resetCorrelationData()
-            ENGINE.resetTimeshiftData()
+            ENGINE.resetPhaseData()
             ENGINE.resetRollingCorrelationData()
-            ENGINE.resetRollingTimeshiftData()
+            ENGINE.resetRollingPhaseData()
             ENGINE.resetClusteringData()
         filetypes = [
-            ("All supported files", "*.txt *.h5 *.rhd"),
+            ("All supported files", "*.h5 *.rhd *.bin *.txt"),
+            ("MCS h5 raw data files", "*.h5"),
+            ("Intan RHD raw data files", "*.rhd"),
+            ("Binary files", "*.bin"),
             ("Spike2 event files", "*.txt"),
             ("pyBSA event files", "*.txt"),
-            ("MCS h5 raw data files", "*.h5"),
-            ("Intan RHD raw data files", "*.rhd")
             ]
         path = tkfd.askopenfilename(initialdir=".", filetypes=filetypes)
         import_parameters = {}
@@ -298,10 +299,13 @@ if __name__ == "__main__":
             update_preproc_rawdata_rms()
             channels = ENGINE.waveforms.keys()
             update_channels(channels)
+            msg = "Loaded data"
             if datatype == engine.data_inout.H5WAVEFORMS:
                 msg = "Loaded MCS h5 raw data file."
             if datatype == engine.data_inout.RHDWAVEFORMS:
                 msg = "Loaded Intan RHD raw data file."
+            if datatype == engine.data_inout.BINWAVEFORMS:
+                msg = "Loaded bin data file."
             message(msg)
             colprint.printokg(msg)
         else:
@@ -412,7 +416,7 @@ if __name__ == "__main__":
         for i,cluster in enumerate(ENGINE.clustering_data.clusters):
             def callback(l):
                 sourcedata_channels_listbox.set(l)
-                print(f"Set channel filters to " + ";".join(l))
+                print(f"Set channel filters to " + ";".join([str(x) for x in l]))
                 dialog.destroy()
              # A little bit of weirdness here because without evaluating an expression in the lambda, the passed argument is only evaluated at the end of the for loop, hence preventing every button from having a separate callback function
             btn = tk.Button(dialog, text=f"Cluster #{i+1}", command=lambda x=[ch for ch in cluster]: callback(x)).grid(row=i, column=0)
@@ -422,14 +426,14 @@ if __name__ == "__main__":
     add_plot_entry(analyses_widgets["CORRELATION"]["show_button"]       , "Correlation matrix"                              , lambda: ENGINE.drawCorrelation(0)       , engine.PLOTS["CORRELATIONMATRIX"     ])
     add_plot_entry(analyses_widgets["CORRELATION"]["show_button"]       , "Granger causality matrix"                        , lambda: ENGINE.drawCorrelation(1)       , engine.PLOTS["GRANGERCAUSALITYMATRIX"])
     add_plot_entry(analyses_widgets["CORRELATION"]["show_button"]       , "Correlation (spatial)"                           , lambda: ENGINE.drawCorrelation(2)       , engine.PLOTS["CORRELATIONSPATIAL"])
-    add_plot_entry(analyses_widgets["TIMESHIFT"]["show_button"]         , "Phase"                                           , lambda: ENGINE.drawTimeshift(0)         , engine.PLOTS["TIMESHIFT"             ])
+    add_plot_entry(analyses_widgets["PHASE"]["show_button"]             , "Phase"                                           , lambda: ENGINE.drawPhase(0)         , engine.PLOTS["PHASE"             ])
     add_plot_entry(analyses_widgets["ROLLINGCORRELATION"]["show_button"], "Rolling correlation (animation)"                 , lambda: ENGINE.drawRollingCorrelation(0), engine.PLOTS["ROLLINGCORRELATION"])
-    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling phase (animation)"                       , lambda: ENGINE.drawRollingTimeshift(0)  , engine.PLOTS["ROLLINGTIMESHIFT"])
-    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling phase spatial (animation)"               , lambda: ENGINE.drawRollingTimeshift(1)  , engine.PLOTS["ROLLINGTIMESHIFTSPATIAL"])
-    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling phase spatial (isolines & labels)"       , lambda: ENGINE.drawRollingTimeshift(2)  , engine.PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"])
-    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling phase spatial (isolines only)"           , lambda: ENGINE.drawRollingTimeshift(3)  , engine.PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"])
-    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling phase spatial (isolines & colormap)"     , lambda: ENGINE.drawRollingTimeshift(4)  , engine.PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"])
-    add_plot_entry(analyses_widgets["ROLLINGTIMESHIFT"]["show_button"]  , "Rolling phase spatial (colormap only)"           , lambda: ENGINE.drawRollingTimeshift(5)  , engine.PLOTS["ROLLINGTIMESHIFTSPATIALSTATIC"])
+    add_plot_entry(analyses_widgets["ROLLINGPHASE"]["show_button"]      , "Rolling phase (animation)"                       , lambda: ENGINE.drawRollingPhase(0)  , engine.PLOTS["ROLLINGPHASE"])
+    add_plot_entry(analyses_widgets["ROLLINGPHASE"]["show_button"]      , "Rolling phase spatial (animation)"               , lambda: ENGINE.drawRollingPhase(1)  , engine.PLOTS["ROLLINGPHASESPATIAL"])
+    add_plot_entry(analyses_widgets["ROLLINGPHASE"]["show_button"]      , "Rolling phase spatial (isolines & labels)"       , lambda: ENGINE.drawRollingPhase(2)  , engine.PLOTS["ROLLINGPHASESPATIALSTATIC"])
+    add_plot_entry(analyses_widgets["ROLLINGPHASE"]["show_button"]      , "Rolling phase spatial (isolines only)"           , lambda: ENGINE.drawRollingPhase(3)  , engine.PLOTS["ROLLINGPHASESPATIALSTATIC"])
+    add_plot_entry(analyses_widgets["ROLLINGPHASE"]["show_button"]      , "Rolling phase spatial (isolines & colormap)"     , lambda: ENGINE.drawRollingPhase(4)  , engine.PLOTS["ROLLINGPHASESPATIALSTATIC"])
+    add_plot_entry(analyses_widgets["ROLLINGPHASE"]["show_button"]      , "Rolling phase spatial (colormap only)"           , lambda: ENGINE.drawRollingPhase(5)  , engine.PLOTS["ROLLINGPHASESPATIALSTATIC"])
     add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Rolling order stats : bar graph"                 , lambda: ENGINE.drawRollingOrderStats(0) , engine.PLOTS["ROLLINGORDERBAR"])
     add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Rolling order stats : bar graph (highlight #1)"  , lambda: ENGINE.drawRollingOrderStats(1) , engine.PLOTS["ROLLINGORDERBAR"])
     add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Rolling order stats : bar graph (highlight #1-2)", lambda: ENGINE.drawRollingOrderStats(2) , engine.PLOTS["ROLLINGORDERBAR"])
@@ -439,16 +443,18 @@ if __name__ == "__main__":
     add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Rolling order stats : pie graph (highlight #1-2)", lambda: ENGINE.drawRollingOrderStats(6) , engine.PLOTS["ROLLINGORDERPIE"])
     add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Rolling order stats : pie graph (highlight #1-3)", lambda: ENGINE.drawRollingOrderStats(7) , engine.PLOTS["ROLLINGORDERPIE"])
     add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Rolling order spatial (animation)"               , lambda: ENGINE.drawRollingOrderStats(8) , engine.PLOTS["ROLLINGORDERSPATIAL"])
+    add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Succession of leaders over time"                 , lambda: ENGINE.drawRollingOrderStats(9) , engine.PLOTS["ROLLINGORDERTEMPORAL"])
+    add_plot_entry(analyses_widgets["ROLLINGORDER"]["show_button"]      , "Succession of leaders over time (spatial)"       , lambda: ENGINE.drawRollingOrderStats(10), engine.PLOTS["ROLLINGORDERTEMPORAL"])
     add_plot_entry(analyses_widgets["CLUSTERING"]["show_button"]        , "Clustered events"                                , lambda: ENGINE.drawClustering(0)        , engine.PLOTS["CLUSTEREDEVENTS"       ])
     add_plot_entry(analyses_widgets["CLUSTERING"]["show_button"]        , "Dendrogram"                                      , lambda: ENGINE.drawClustering(1)        , engine.PLOTS["DENDROGRAM"            ])
     add_plot_entry(analyses_widgets["CLUSTERING"]["show_button"]        , "Clusters (spatial)"                              , lambda: ENGINE.drawClustering(2)        , engine.PLOTS["CLUSTERSSPATIAL"       ])
 
     add_export_entry(analyses_widgets["CORRELATION"]["export_button"]       , "Correlation matrix"      , lambda destination: ENGINE.exportCorrelation(which=0, destination=destination)       , engine.EXPORTS["CORRELATIONMATRIX"     ])
     add_export_entry(analyses_widgets["CORRELATION"]["export_button"]       , "Granger causality matrix", lambda destination: ENGINE.exportCorrelation(which=1, destination=destination)       , engine.EXPORTS["GRANGERCAUSALITYMATRIX"])
-    add_export_entry(analyses_widgets["TIMESHIFT"]["export_button"]         , "Phase"                   , lambda destination: ENGINE.exportTimeshift(which=0, destination=destination)         , engine.EXPORTS["TIMESHIFT"])
+    add_export_entry(analyses_widgets["PHASE"]["export_button"]             , "Phase"                   , lambda destination: ENGINE.exportPhase(which=0, destination=destination)         , engine.EXPORTS["PHASE"])
     add_export_entry(analyses_widgets["ORDER"]["export_button"]             , "Order"                   , lambda destination: ENGINE.exportOrder(which=0, destination=destination)             , engine.EXPORTS["ORDER"])
     add_export_entry(analyses_widgets["ROLLINGCORRELATION"]["export_button"], "Rolling correlation"     , lambda destination: ENGINE.exportRollingCorrelation(which=0, destination=destination), engine.EXPORTS["ROLLINGCORRELATION"])
-    add_export_entry(analyses_widgets["ROLLINGTIMESHIFT"]["export_button"]  , "Rolling phase"           , lambda destination: ENGINE.exportRollingTimeshift(which=0, destination=destination)  , engine.EXPORTS["ROLLINGTIMESHIFT"])
+    add_export_entry(analyses_widgets["ROLLINGPHASE"]["export_button"]      , "Rolling phase"           , lambda destination: ENGINE.exportRollingPhase(which=0, destination=destination)  , engine.EXPORTS["ROLLINGPHASE"])
     add_export_entry(analyses_widgets["ROLLINGORDER"]["export_button"]      , "Rolling order"           , lambda destination: ENGINE.exportRollingOrder(which=0, destination=destination)      , engine.EXPORTS["ROLLINGORDER"])
     add_export_entry(analyses_widgets["CLUSTERING"]["export_button"]        , "Clustered events"        , lambda destination: ENGINE.exportClustering(which=0, destination=destination)        , engine.EXPORTS["CLUSTERING"])
 
@@ -561,8 +567,8 @@ if __name__ == "__main__":
             success &= ENGINE.bakeCorrelation()
         #if analyses_widgets["GRANGER"]["checkbox_state"].get():
             #success &= ENGINE.bakeGranger()
-        if analyses_widgets["TIMESHIFT"]["checkbox_state"].get():
-            success &= ENGINE.bakeTimeshift()
+        if analyses_widgets["PHASE"]["checkbox_state"].get():
+            success &= ENGINE.bakePhase()
         if analyses_widgets["ORDER"]["checkbox_state"].get():
             success &= ENGINE.bakeOrder()
         if analyses_widgets["ACTIVATIONORDER"]["checkbox_state"].get():
@@ -571,8 +577,8 @@ if __name__ == "__main__":
             success &= ENGINE.bakeClustering()
         if analyses_widgets["ROLLINGCORRELATION"]["checkbox_state"].get():
             success &= ENGINE.bakeRollingCorrelation()
-        if analyses_widgets["ROLLINGTIMESHIFT"]["checkbox_state"].get():
-            success &= ENGINE.bakeRollingTimeshift()
+        if analyses_widgets["ROLLINGPHASE"]["checkbox_state"].get():
+            success &= ENGINE.bakeRollingPhase()
         if analyses_widgets["ROLLINGORDER"]["checkbox_state"].get():
             success &= ENGINE.bakeRollingOrder()
         update_all_plot_status()

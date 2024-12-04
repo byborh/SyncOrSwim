@@ -2,6 +2,7 @@ import re
 import os
 import pathlib
 import pandas as pd
+import progressbar
 
 from datamanager import manager
 
@@ -15,9 +16,10 @@ SPIKE2EVENTS  =  0
 PYBSAEVENTS   =  1
 H5WAVEFORMS   =  2
 RHDWAVEFORMS  =  3
+BINWAVEFORMS  =  4
 
 EVENTS    = [SPIKE2EVENTS, PYBSAEVENTS]
-WAVEFORMS = [H5WAVEFORMS, RHDWAVEFORMS]
+WAVEFORMS = [H5WAVEFORMS, RHDWAVEFORMS, BINWAVEFORMS]
 
 class Timestamps:
     def __init__(self, timestamps, Fs):
@@ -49,6 +51,8 @@ def recognize(path):
                 return PYBSAEVENTS
             if lines[0].startswith('# AP detection timestamp list'):
                 return PYBSAEVENTS
+    if extension == ".bin":
+        return BINWAVEFORMS
     return UNRECOGNIZED
 
 def fromSpike2(path, verbose=True):
@@ -94,15 +98,15 @@ def fromPyBiosignalAnalysis(path, verbose=True):
                     timestamps[current_channel].append(float(TS.group()))
 
     return timestamps
-
 def fromH5(path, import_parameters={}, verbose=True):
     datasource = manager.DataSource(path)
     datasource.setImportParameters(import_parameters)
     datasource.load()
     signals = {}
-    for ch in datasource.getAllChannels():
-        signal_idx = datasource.translateChannel(ch)
-        signals[ch] = datasource.getSignal(signal_idx)
+    channels = datasource.getChannels()
+    for i,ch in enumerate(channels):
+        signals[ch] = datasource.getSignal(ch)
+        progressbar.inlineCycles(i, len(channels), prefix="Loading MCS H5 data")
     Fs = datasource.getFs()
     datasource.unload()
     return signals, Fs
@@ -113,9 +117,9 @@ def fromRHD(path, import_parameters={}, verbose=True):
     datasource.load()
     signals = {}
     Ndiscarded = 0
-    for ch in datasource.getAllChannels():
-        signal_idx = datasource.translateChannel(ch)
-        signal = datasource.getSignal(signal_idx)
+    channels = datasource.getChannels()
+    for ch in channels:
+        signal = datasource.getSignal(ch)
         if len(signal) > 1:
             signals[ch] = signal
         else:
@@ -180,6 +184,18 @@ def generateTestEvents(T, Fs, family="static"):
             regex_ch += 1
 
     return timestamps
+def fromBIN(path, import_parameters={}, verbose=True):
+    datasource = manager.DataSource(path)
+    datasource.setImportParameters(import_parameters)
+    datasource.load()
+    signals = {}
+    channels = datasource.getChannels()
+    for i,ch in enumerate(channels):
+        signals[ch] = datasource.getSignal(ch)
+        progressbar.inlineCycles(i, len(channels), prefix="Loading BIN data")
+    Fs = datasource.getFs()
+    datasource.unload()
+    return signals, Fs
 
 def exportCSV(path="example.csv", vectors=([1,2,3],[0.1,0.2,0.3]), labels=("Time", "Data"), separator=";"):
     directory = os.path.dirname(path)
