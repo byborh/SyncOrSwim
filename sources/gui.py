@@ -198,7 +198,7 @@ if __name__ == "__main__":
     #add_analysis("GRANGER"           , parent=analyses_labelframe, column=col, row=row, text="Granger causality")  ; row += 1
     add_analysis("PHASE"             , parent=analyses_labelframe, column=col, row=row, text="Phase")              ; row += 1
     add_analysis("ORDER"             , parent=analyses_labelframe, column=col, row=row, text="Order")              ; row += 1
-    add_analysis("ACTIVATIONORDER"   , parent=analyses_labelframe, column=col, row=row, text="Activation order")   ; row += 1
+    #add_analysis("ACTIVATIONORDER"   , parent=analyses_labelframe, column=col, row=row, text="Activation order")   ; row += 1
     add_analysis("CLUSTERING"        , parent=analyses_labelframe, column=col, row=row, text="Clustering")         ; col += 1; row=0
     add_analysis("ROLLINGCORRELATION", parent=analyses_labelframe, column=col, row=row, text="Rolling correlation"); row += 1
     add_analysis("ROLLINGPHASE"      , parent=analyses_labelframe, column=col, row=row, text="Rolling phase")      ; row += 1
@@ -571,8 +571,8 @@ if __name__ == "__main__":
             success &= ENGINE.bakePhase()
         if analyses_widgets["ORDER"]["checkbox_state"].get():
             success &= ENGINE.bakeOrder()
-        if analyses_widgets["ACTIVATIONORDER"]["checkbox_state"].get():
-            success &= ENGINE.bakeActivationOrder()
+        #if analyses_widgets["ACTIVATIONORDER"]["checkbox_state"].get():
+            #success &= ENGINE.bakeActivationOrder()
         if analyses_widgets["CLUSTERING"]["checkbox_state"].get():
             success &= ENGINE.bakeClustering()
         if analyses_widgets["ROLLINGCORRELATION"]["checkbox_state"].get():
