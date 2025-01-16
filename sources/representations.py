@@ -660,6 +660,9 @@ def drawLeaderSuccession2D(rolling_order_data, layout, mode="arrows", Fs=1., ax=
         # Filter path for visibility
         box_pts = Nsmooth
         box = np.ones(box_pts)/box_pts
+        if not(path_xpoints) or not(path_ypoints):
+            print("drawLeaderSuccession2D : no data to plot")
+            return h
         path_xpoints = np.convolve(path_xpoints, box, mode='same')
         path_ypoints = np.convolve(path_ypoints, box, mode='same')
 
