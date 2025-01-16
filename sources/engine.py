@@ -266,7 +266,7 @@ class CorrelationDataframe:
             ''' which=0 : correlation matrix '''
             datasets = []; sheet_names = []; titles = []
             datasets.append(self.correlation_data.matrix); sheet_names.append("matrix"); titles.append("Correlation matrix")
-            destination = (self.file + '.correlation_matrix.xlsx') if destination is None else destination
+            destination = (self.file + '.correlation_matrix.xlsx') if destination is None else destination.rsplit(".",1)[0] + ".correlation_matrix.xlsx" if which == -1 else destination # 1. default filename if specified ELSE provided filename with individual fields if exporting all ELSE provided filename
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
         return True
     def bakeGranger(self):
@@ -308,7 +308,7 @@ class CorrelationDataframe:
             datasets = []; sheet_names = []; titles = []
             datasets.append(self.phase_data.matrix)      ; sheet_names.append("dt matrix"); titles.append("Computed dt matrix")
             datasets.append(self.phase_data.correlation) ; sheet_names.append("Correlation"); titles.append("Correlation matrix of re-aligned signals")
-            destination = (self.file + '.phase.xlsx') if destination is None else destination
+            destination = (self.file + '.phase.xlsx') if destination is None else destination.rsplit(".",1)[0] + ".phase.xlsx" if which == -1 else destination # 1. default filename if specified ELSE provided filename with individual fields if exporting all ELSE provided filename
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
         return True
     def bakeOrder(self):
@@ -335,7 +335,7 @@ class CorrelationDataframe:
             datasets.append(self.order_data.series)            ; sheet_names.append("series")   ; titles.append("Phase vector sorted")
             datasets.append(pd.Series(self.order_data.order))  ; sheet_names.append("order")    ; titles.append("Order")
             datasets.append(pd.Series(self.order_data.values)) ; sheet_names.append("phase"); titles.append("Phase values")
-            destination = (self.file + '.order.xlsx') if destination is None else destination
+            destination = (self.file + '.order.xlsx') if destination is None else destination.rsplit(".",1)[0] + ".order.xlsx" if which == -1 else destination # 1. default filename if specified ELSE provided filename with individual fields if exporting all ELSE provided filename
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
         return True
     def bakeActivationOrder(self):
@@ -375,7 +375,7 @@ class CorrelationDataframe:
             datasets = []; sheet_names = []; titles = []
             datasets.append(pd.Series(self.clustering_data.clusters))                                          ; sheet_names.append("clusters")   ; titles.append("List of clusters")
             datasets.append(data_inout.linkage2df(self.clustering_data.linkage, self.clustering_data.labels))  ; sheet_names.append("linkage")    ; titles.append("Linkage")
-            destination = (self.file + '.clustering.xlsx') if destination is None else destination
+            destination = (self.file + '.clustering.xlsx') if destination is None else destination.rsplit(".",1)[0] + ".clustering.xlsx" if which == -1 else destination # 1. default filename if specified ELSE provided filename with individual fields if exporting all ELSE provided filename
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
         return True
     def bakeRollingCorrelation(self):
@@ -410,7 +410,8 @@ class CorrelationDataframe:
             for i,ch1 in enumerate(channels):
                 for j,ch2 in enumerate(channels):
                     if i>j:
-                        data.at[:,f"{ch1}-{ch2}"] = stacked_data[:,i,j]
+                        data[f"{ch1}-{ch2}"] = stacked_data[:,i,j]
+            destination = (self.file + '.rolling_correlation.xlsx') if destination is None else destination.rsplit(".",1)[0] + ".rolling_correlation.xlsx" if which == -1 else destination # 1. default filename if specified ELSE provided filename with individual fields if exporting all ELSE provided filename
             data_inout.df2xlsx(data, "Rolling Correlation", destination)
         return True
 
@@ -449,6 +450,7 @@ class CorrelationDataframe:
                 # Correlation matrices
             for i,td in enumerate(self.rolling_phase_data):
                 datasets.append(td.correlation) ; sheet_names.append(f"Correlation {i+1}-{W}")   ; titles.append(f"Correlation matrix in window #{i+1}/{W} : Samples {td.interval} / Period ({td.interval[0]/self.Fs},{td.interval[1]/self.Fs}) s")
+            destination = (self.file + '.rolling_phase.xlsx') if destination is None else destination.rsplit(".",1)[0] + ".rolling_phase.xlsx" if which == -1 else destination # 1. default filename if specified ELSE provided filename with individual fields if exporting all ELSE provided filename
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, analyzer=self)
         return True
     def bakeRollingOrder(self):
@@ -489,7 +491,7 @@ class CorrelationDataframe:
             datasets.append(order_stats.N)                           ; sheet_names.append("N")                ; titles.append(f"Number of times at rank #i (out of {order_stats.Ntotal} total)")
             datasets.append(leader_periods)                          ; sheet_names.append("leaders")          ; titles.append("List of periods where a channel remained the leader, with timesamps and durations (s)")
             datasets.append(leader_distances)                        ; sheet_names.append("leader_distances") ; titles.append("Distances between successive leaders ; timestamps and durations in seconds, distances typ. in micrometers (same units as MEA file)")
-            destination = (self.file + '.order_stats.xlsx') if destination is None else destination
+            destination = (self.file + '.order_stats.xlsx') if destination is None else destination.rsplit(".",1)[0] + ".order_stats.xlsx" if which == -1 else destination # 1. default filename if specified ELSE provided filename with individual fields if exporting all ELSE provided filename
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
         return True
     def checkDependencies(self, data, message, baker=None):
