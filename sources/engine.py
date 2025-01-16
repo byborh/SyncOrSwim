@@ -701,6 +701,139 @@ class CorrelationDataframe:
             representations.drawPhaseSpatial(self.phase_data.matrix, MEA_layout, Fs=self.Fs)
         if which in [-1,0]:
             plt.show(block=False)
+
+    ''' Export all analyses '''
+    def exportAllAnalyses(self, destination_folder=None):
+        ''' Handle default file name '''
+        if destination_folder is None:
+            destination_folder = self.file.rsplit(".", 1)[0]
+        
+        ''' Get base file name '''
+        basename = data_inout.os.path.basename(self.file).rsplit(".", 1)[0]
+
+        ''' Export available data '''
+        print("Exporting available data ...")
+        if self._isExportReady(EXPORTS["CORRELATIONMATRIX"]):
+            destination_subfolder = f"{destination_folder}/Correlation/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportCorrelation(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1) 
+        if self._isExportReady(EXPORTS["DENDROGRAM"]):
+            pass # Not implemented
+        if self._isExportReady(EXPORTS["GRANGERCAUSALITYMATRIX"]):
+            destination_subfolder = f"{destination_folder}/Causality/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportGranger(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1)
+        if self._isExportReady(EXPORTS["PHASE"]):
+            destination_subfolder = f"{destination_folder}/Phase/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportPhase(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1)
+        if self._isExportReady(EXPORTS["ORDER"]):
+            destination_subfolder = f"{destination_folder}/Order/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportOrder(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1)
+        if self._isExportReady(EXPORTS["CLUSTERING"]):
+            destination_subfolder = f"{destination_folder}/Clustering/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportClustering(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1)
+        if self._isExportReady(EXPORTS["ROLLINGCORRELATION"]):
+            destination_subfolder = f"{destination_folder}/Correlation/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportRollingCorrelation(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1)
+        if self._isExportReady(EXPORTS["ROLLINGPHASE"]):
+            destination_subfolder = f"{destination_folder}/Phase/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportRollingPhase(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1)
+        if self._isExportReady(EXPORTS["ROLLINGORDER"]):
+            destination_subfolder = f"{destination_folder}/Order/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportRollingOrder(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1)
+        colprint.printokg("Data exported.")
+
+        ''' Export available figures '''
+        print("Exporting available figures ...")
+        if self._isPlotReady(PLOTS["CORRELATIONMATRIX"]):
+            destination_subfolder = f"{destination_folder}/Correlation/"
+            destination_file = f"{destination_subfolder}/{basename}.correlation_matrix.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawCorrelation(which=0, show=False) ; plt.savefig(destination_file) ; plt.close()
+        if self._isPlotReady(PLOTS["GRANGERCAUSALITYMATRIX"]):
+            destination_subfolder = f"{destination_folder}/Causality/"
+            destination_file = f"{destination_subfolder}/{basename}.granger_matrix.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawCorrelation(which=1, show=False) ; plt.savefig(destination_file) ; plt.close()
+        if self._isPlotReady(PLOTS["CORRELATIONSPATIAL"]):
+            destination_subfolder = f"{destination_folder}/Correlation/"
+            destination_file = f"{destination_subfolder}/{basename}.correlation_spatial.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawCorrelation(which=2, show=False) ; plt.savefig(destination_file) ; plt.close()
+        if self._isPlotReady(PLOTS["CLUSTEREDEVENTS"]):
+            destination_subfolder = f"{destination_folder}/Clustering/"
+            destination_file = f"{destination_subfolder}/{basename}.clustering.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawClustering(which=0, show=False) ; plt.savefig(destination_file) ; plt.close()
+        if self._isPlotReady(PLOTS["DENDROGRAM"]):
+            destination_subfolder = f"{destination_folder}/Clustering/"
+            destination_file = f"{destination_subfolder}/{basename}.dendrogram.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawClustering(which=1, show=False) ; plt.savefig(destination_file) ; plt.close()
+        if self._isPlotReady(PLOTS["PHASE"]):
+            destination_subfolder = f"{destination_folder}/Phase/"
+            destination_file = f"{destination_subfolder}/{basename}.phase.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawPhase(which=0, show=False) ; plt.savefig(destination_file) ; plt.close()
+        if self._isPlotReady(PLOTS["ROLLINGCORRELATION"]):
+            pass # No plot to export - animation only
+        if self._isPlotReady(PLOTS["ROLLINGPHASE"]):
+            pass # No plot to export - animation only
+        if self._isPlotReady(PLOTS["ROLLINGPHASESPATIAL"]):
+            pass # No plot to export - animation only
+        if self._isPlotReady(PLOTS["ROLLINGPHASESPATIALSTATIC"]):
+            destination_subfolder = f"{destination_folder}/Phase/"
+            destination_file = f"{destination_subfolder}/{basename}.rolling_phase.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            ''' This may take a while if all three are exported ; uncomment according to preference '''
+            # self.drawRollingPhase(which=3, show=False) ; plt.savefig(destination_file.replace(".png", ".A.png")) ; plt.close()
+            # self.drawRollingPhase(which=4, show=False) ; plt.savefig(destination_file.replace(".png", ".B.png")) ; plt.close()
+            self.drawRollingPhase(which=5, show=False) ; plt.savefig(destination_file.replace(".png", ".C.png")) ; plt.close()
+        if self._isPlotReady(PLOTS["ROLLINGORDERSPATIAL"]):
+            pass # No plot to export - animation only
+        if self._isPlotReady(PLOTS["ROLLINGORDERBAR"]):
+            destination_subfolder = f"{destination_folder}/Order/"
+            destination_file = f"{destination_subfolder}/{basename}.order_stats.bar.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawRollingOrderStats(which=0, show=False) ; plt.savefig(destination_file.replace(".png", ".png")) ; plt.close()
+            self.drawRollingOrderStats(which=1, show=False) ; plt.savefig(destination_file.replace(".png", ".H1.png")) ; plt.close()
+            self.drawRollingOrderStats(which=2, show=False) ; plt.savefig(destination_file.replace(".png", ".H2.png")) ; plt.close()
+            self.drawRollingOrderStats(which=3, show=False) ; plt.savefig(destination_file.replace(".png", ".H3.png")) ; plt.close()
+        if self._isPlotReady(PLOTS["ROLLINGORDERPIE"]):
+            destination_subfolder = f"{destination_folder}/Order/"
+            destination_file = f"{destination_subfolder}/{basename}.order_stats.pie.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawRollingOrderStats(which=4, show=False) ; plt.savefig(destination_file.replace(".png", ".png")) ; plt.close()
+            self.drawRollingOrderStats(which=5, show=False) ; plt.savefig(destination_file.replace(".png", ".H1.png")) ; plt.close()
+            self.drawRollingOrderStats(which=6, show=False) ; plt.savefig(destination_file.replace(".png", ".H2.png")) ; plt.close()
+            self.drawRollingOrderStats(which=7, show=False) ; plt.savefig(destination_file.replace(".png", ".H3.png")) ; plt.close()
+        if self._isPlotReady(PLOTS["CLUSTERSSPATIAL"]):
+            destination_subfolder = f"{destination_folder}/Clustering/"
+            destination_file = f"{destination_subfolder}/{basename}.clustering.spatial.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawClustering(which=2, show=False) ; plt.savefig(destination_file) ; plt.close()
+        if self._isPlotReady(PLOTS["ROLLINGORDERTEMPORAL"]):
+            destination_subfolder = f"{destination_folder}/Order/"
+            destination_file = f"{destination_subfolder}/{basename}.order_stats.succession.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawRollingOrderStats(which= 9, show=False) ; plt.savefig(destination_file.replace(".png", ".A.png")) ; plt.close()
+            self.drawRollingOrderStats(which=10, show=False) ; plt.savefig(destination_file.replace(".png", ".B.png")) ; plt.close()
+        colprint.printokg("Figures exported.")
+
     ''' Parameter handling '''
     def importParameters(self, path):
         with open(path, 'r') as fid:
