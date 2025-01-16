@@ -406,7 +406,8 @@ class CorrelationDataframe:
             windows_samples = [instant.interval for instant in self.rolling_correlation_data]
             windows_s = [(interval[0]/self.parameters["processing_Fs"], interval[1]/self.parameters["processing_Fs"]) for interval in windows_samples]
             windows = [f"{interval[0]:.2f}-{interval[1]:.2f} s" for interval in windows_s]
-            data = pd.DataFrame(data=None, index=windows, columns=[])
+            channel_couples = [f"{ch1}-{ch2}" for i,ch1 in enumerate(channels) for j,ch2 in enumerate(channels) if i>j]
+            data = pd.DataFrame(data=None, index=windows, columns=channel_couples)
             for i,ch1 in enumerate(channels):
                 for j,ch2 in enumerate(channels):
                     if i>j:
