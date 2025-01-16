@@ -592,7 +592,7 @@ class CorrelationDataframe:
                 string += ''.join(line3_txt)
         return string
     """ Plots """
-    def drawCorrelation(self, which=-1):
+    def drawCorrelation(self, which=-1, show=True):
         if self._isPlotReady(PLOTS["CORRELATIONMATRIX"]) and which in [-1,0]:
             representations.drawCorrelation(self.correlation_data.matrix, title='Correlation matrix')
         if self._isPlotReady(PLOTS["GRANGERCAUSALITYMATRIX"]) and which in [-1,1]:
@@ -600,9 +600,9 @@ class CorrelationDataframe:
         if self._isPlotReady(PLOTS["CORRELATIONSPATIAL"]) and which in [-1,2]:
             MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
             representations.drawCorrelationSpatial(self.correlation_data.matrix, MEA_layout)
-        if which in [-1,0,1,2]:
+        if show and (which in [-1,0,1,2]):
             plt.show(block=False)
-    def drawClustering(self, which=-1):
+    def drawClustering(self, which=-1, show=True):
         if self._isPlotReady(PLOTS["CLUSTEREDEVENTS"]) and which in [-1,0]:
             representations.drawClusteredEvents(self.timestamps, self.linkage)
         if self._isPlotReady(PLOTS["DENDROGRAM"]) and which in [-1,1]:
@@ -610,14 +610,14 @@ class CorrelationDataframe:
         if self._isPlotReady(PLOTS["CLUSTERSSPATIAL"]) and which in [-1,2]:
             MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
             representations.drawClustersSpatial(self.correlation_data, self.clustering_data, MEA_layout)
-        if which in [-1,0,1,2]:
+        if show and (which in [-1,0,1,2]):
             plt.show(block=False)
-    def drawRollingCorrelation(self, which=-1):
+    def drawRollingCorrelation(self, which=-1, show=True):
         if self._isPlotReady(PLOTS["ROLLINGCORRELATION"]) and which in [-1,0]:
             representations.animate_rollingCorrelation(self.rolling_correlation_data, self.waveforms, Fs=self.Fs)
-        if which in [-1,0]:
+        if show and (which in [-1,0]):
             plt.show(block=False)
-    def drawRollingPhase(self, which=-1):
+    def drawRollingPhase(self, which=-1, show=True):
         MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
         if self._isPlotReady(PLOTS["ROLLINGPHASE"]) and which in[-1,0]:
             representations.animate_rollingPhase(self.rolling_phase_data, self.waveforms, Fs=self.Fs)
@@ -643,9 +643,9 @@ class CorrelationDataframe:
                 self.rolling_phase_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
                 contour=False, contourlabels=False, contourmap=None,
                 fill=True, fillmap="rainbow_r")
-        if which in [-1,0,1,2,3,4,5]:
+        if show and (which in [-1,0,1,2,3,4,5]):
             plt.show(block=False)
-    def drawRollingOrderStats(self, which=-1):
+    def drawRollingOrderStats(self, which=-1, show=True):
         MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
         # BAR GRAPHS
         if self._isPlotReady(PLOTS["ROLLINGORDERBAR"]) and which in [-1,0]:
@@ -692,10 +692,10 @@ class CorrelationDataframe:
         if self._isPlotReady(PLOTS["ROLLINGORDERTEMPORAL"]) and which in [-1,10]:
             representations.drawLeaderSuccession2D(self.rolling_order_data, layout=MEA_layout, mode="arrows", Fs=self.parameters["processing_Fs"])
         # ---
-        if which in [-1,0,1,2,3,4,5,6,7,8,9,10]:
+        if show and (which in [-1,0,1,2,3,4,5,6,7,8,9,10]):
             plt.show(block=False)
 
-    def drawPhase(self, which=-1):
+    def drawPhase(self, which=-1, show=True):
         if self._isPlotReady(PLOTS["PHASE"]) and which in [-1,0]:
             MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
             representations.drawPhaseSpatial(self.phase_data.matrix, MEA_layout, Fs=self.Fs)
