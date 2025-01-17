@@ -615,7 +615,11 @@ class CorrelationDataframe:
     def drawRollingCorrelation(self, which=-1, show=True):
         if self._isPlotReady(PLOTS["ROLLINGCORRELATION"]) and which in [-1,0]:
             representations.animate_rollingCorrelation(self.rolling_correlation_data, self.waveforms, Fs=self.Fs)
-        if show and (which in [-1,0]):
+        if self._isPlotReady(PLOTS["ROLLINGCORRELATION"]) and which in [-1,1]:
+            representations.drawAverageRollingCorrelation(self.rolling_correlation_data, Fs=self.Fs, which="mean")
+        if self._isPlotReady(PLOTS["ROLLINGCORRELATION"]) and which in [-1,2]:
+            representations.drawAverageRollingCorrelation(self.rolling_correlation_data, Fs=self.Fs, which="median")
+        if show and (which in [-1,0,1,2]):
             plt.show(block=False)
     def drawRollingPhase(self, which=-1, show=True):
         MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
@@ -790,7 +794,11 @@ class CorrelationDataframe:
             data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
             self.drawPhase(which=0, show=False) ; plt.savefig(destination_file) ; plt.close()
         if self._isPlotReady(PLOTS["ROLLINGCORRELATION"]):
-            pass # No plot to export - animation only
+            destination_subfolder = f"{destination_folder}/Correlation/"
+            destination_file = f"{destination_subfolder}/{basename}.rolling_correlation.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawRollingCorrelation(which=1, show=False) ; plt.savefig(destination_file.replace(".png", ".mean.png")) ; plt.close()
+            self.drawRollingCorrelation(which=2, show=False) ; plt.savefig(destination_file.replace(".png", ".median.png")) ; plt.close()
         if self._isPlotReady(PLOTS["ROLLINGPHASE"]):
             pass # No plot to export - animation only
         if self._isPlotReady(PLOTS["ROLLINGPHASESPATIAL"]):

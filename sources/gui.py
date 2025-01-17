@@ -430,6 +430,8 @@ if __name__ == "__main__":
     add_plot_entry(analyses_widgets["CORRELATION"]["show_button"]       , "Correlation (spatial)"                           , lambda: ENGINE.drawCorrelation(2)       , engine.PLOTS["CORRELATIONSPATIAL"])
     add_plot_entry(analyses_widgets["PHASE"]["show_button"]             , "Phase"                                           , lambda: ENGINE.drawPhase(0)         , engine.PLOTS["PHASE"             ])
     add_plot_entry(analyses_widgets["ROLLINGCORRELATION"]["show_button"], "Rolling correlation (animation)"                 , lambda: ENGINE.drawRollingCorrelation(0), engine.PLOTS["ROLLINGCORRELATION"])
+    add_plot_entry(analyses_widgets["ROLLINGCORRELATION"]["show_button"], "Rolling correlation (mean±SD)"                   , lambda: ENGINE.drawRollingCorrelation(1), engine.PLOTS["ROLLINGCORRELATION"])
+    add_plot_entry(analyses_widgets["ROLLINGCORRELATION"]["show_button"], "Rolling correlation (Q1-Median-Q3)"              , lambda: ENGINE.drawRollingCorrelation(2), engine.PLOTS["ROLLINGCORRELATION"])
     add_plot_entry(analyses_widgets["ROLLINGPHASE"]["show_button"]      , "Rolling phase (animation)"                       , lambda: ENGINE.drawRollingPhase(0)  , engine.PLOTS["ROLLINGPHASE"])
     add_plot_entry(analyses_widgets["ROLLINGPHASE"]["show_button"]      , "Rolling phase spatial (animation)"               , lambda: ENGINE.drawRollingPhase(1)  , engine.PLOTS["ROLLINGPHASESPATIAL"])
     add_plot_entry(analyses_widgets["ROLLINGPHASE"]["show_button"]      , "Rolling phase spatial (isolines & labels)"       , lambda: ENGINE.drawRollingPhase(2)  , engine.PLOTS["ROLLINGPHASESPATIALSTATIC"])
@@ -553,7 +555,7 @@ if __name__ == "__main__":
     @assets.alertonfail
     def export_all_analyses(directory_path=None):
         if directory_path is None:
-            directory_path = tkfd.askdirectory(mustexist=False)
+            directory_path = tkfd.askdirectory()
         if directory_path:
             ENGINE.exportAllAnalyses(directory_path)
             msg = "Export successful"
