@@ -266,7 +266,7 @@ class CorrelationDataframe:
             ''' which=0 : correlation matrix '''
             datasets = []; sheet_names = []; titles = []
             datasets.append(self.correlation_data.matrix); sheet_names.append("matrix"); titles.append("Correlation matrix")
-            destination = (self.file + '.correlation_matrix.xlsx') if destination is None else destination
+            destination = (self.file + '.correlation_matrix.xlsx') if destination is None else destination.rsplit(".",1)[0] + ".correlation_matrix.xlsx" if which == -1 else destination # 1. default filename if specified ELSE provided filename with individual fields if exporting all ELSE provided filename
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
         return True
     def bakeGranger(self):
@@ -308,7 +308,7 @@ class CorrelationDataframe:
             datasets = []; sheet_names = []; titles = []
             datasets.append(self.phase_data.matrix)      ; sheet_names.append("dt matrix"); titles.append("Computed dt matrix")
             datasets.append(self.phase_data.correlation) ; sheet_names.append("Correlation"); titles.append("Correlation matrix of re-aligned signals")
-            destination = (self.file + '.phase.xlsx') if destination is None else destination
+            destination = (self.file + '.phase.xlsx') if destination is None else destination.rsplit(".",1)[0] + ".phase.xlsx" if which == -1 else destination # 1. default filename if specified ELSE provided filename with individual fields if exporting all ELSE provided filename
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
         return True
     def bakeOrder(self):
@@ -335,7 +335,7 @@ class CorrelationDataframe:
             datasets.append(self.order_data.series)            ; sheet_names.append("series")   ; titles.append("Phase vector sorted")
             datasets.append(pd.Series(self.order_data.order))  ; sheet_names.append("order")    ; titles.append("Order")
             datasets.append(pd.Series(self.order_data.values)) ; sheet_names.append("phase"); titles.append("Phase values")
-            destination = (self.file + '.order.xlsx') if destination is None else destination
+            destination = (self.file + '.order.xlsx') if destination is None else destination.rsplit(".",1)[0] + ".order.xlsx" if which == -1 else destination # 1. default filename if specified ELSE provided filename with individual fields if exporting all ELSE provided filename
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
         return True
     def bakeActivationOrder(self):
@@ -375,7 +375,7 @@ class CorrelationDataframe:
             datasets = []; sheet_names = []; titles = []
             datasets.append(pd.Series(self.clustering_data.clusters))                                          ; sheet_names.append("clusters")   ; titles.append("List of clusters")
             datasets.append(data_inout.linkage2df(self.clustering_data.linkage, self.clustering_data.labels))  ; sheet_names.append("linkage")    ; titles.append("Linkage")
-            destination = (self.file + '.clustering.xlsx') if destination is None else destination
+            destination = (self.file + '.clustering.xlsx') if destination is None else destination.rsplit(".",1)[0] + ".clustering.xlsx" if which == -1 else destination # 1. default filename if specified ELSE provided filename with individual fields if exporting all ELSE provided filename
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
         return True
     def bakeRollingCorrelation(self):
@@ -406,11 +406,13 @@ class CorrelationDataframe:
             windows_samples = [instant.interval for instant in self.rolling_correlation_data]
             windows_s = [(interval[0]/self.parameters["processing_Fs"], interval[1]/self.parameters["processing_Fs"]) for interval in windows_samples]
             windows = [f"{interval[0]:.2f}-{interval[1]:.2f} s" for interval in windows_s]
-            data = pd.DataFrame(data=None, index=windows, columns=[])
+            channel_couples = [f"{ch1}-{ch2}" for i,ch1 in enumerate(channels) for j,ch2 in enumerate(channels) if i>j]
+            data = pd.DataFrame(data=None, index=windows, columns=channel_couples)
             for i,ch1 in enumerate(channels):
                 for j,ch2 in enumerate(channels):
                     if i>j:
-                        data.at[:,f"{ch1}-{ch2}"] = stacked_data[:,i,j]
+                        data[f"{ch1}-{ch2}"] = stacked_data[:,i,j]
+            destination = (self.file + '.rolling_correlation.xlsx') if destination is None else destination.rsplit(".",1)[0] + ".rolling_correlation.xlsx" if which == -1 else destination # 1. default filename if specified ELSE provided filename with individual fields if exporting all ELSE provided filename
             data_inout.df2xlsx(data, "Rolling Correlation", destination)
         return True
 
@@ -449,6 +451,7 @@ class CorrelationDataframe:
                 # Correlation matrices
             for i,td in enumerate(self.rolling_phase_data):
                 datasets.append(td.correlation) ; sheet_names.append(f"Correlation {i+1}-{W}")   ; titles.append(f"Correlation matrix in window #{i+1}/{W} : Samples {td.interval} / Period ({td.interval[0]/self.Fs},{td.interval[1]/self.Fs}) s")
+            destination = (self.file + '.rolling_phase.xlsx') if destination is None else destination.rsplit(".",1)[0] + ".rolling_phase.xlsx" if which == -1 else destination # 1. default filename if specified ELSE provided filename with individual fields if exporting all ELSE provided filename
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, analyzer=self)
         return True
     def bakeRollingOrder(self):
@@ -489,7 +492,7 @@ class CorrelationDataframe:
             datasets.append(order_stats.N)                           ; sheet_names.append("N")                ; titles.append(f"Number of times at rank #i (out of {order_stats.Ntotal} total)")
             datasets.append(leader_periods)                          ; sheet_names.append("leaders")          ; titles.append("List of periods where a channel remained the leader, with timesamps and durations (s)")
             datasets.append(leader_distances)                        ; sheet_names.append("leader_distances") ; titles.append("Distances between successive leaders ; timestamps and durations in seconds, distances typ. in micrometers (same units as MEA file)")
-            destination = (self.file + '.order_stats.xlsx') if destination is None else destination
+            destination = (self.file + '.order_stats.xlsx') if destination is None else destination.rsplit(".",1)[0] + ".order_stats.xlsx" if which == -1 else destination # 1. default filename if specified ELSE provided filename with individual fields if exporting all ELSE provided filename
             data_inout.df2xlsx_multisheet(datasets, sheet_names, titles, destination, self)
         return True
     def checkDependencies(self, data, message, baker=None):
@@ -589,7 +592,7 @@ class CorrelationDataframe:
                 string += ''.join(line3_txt)
         return string
     """ Plots """
-    def drawCorrelation(self, which=-1):
+    def drawCorrelation(self, which=-1, show=True):
         if self._isPlotReady(PLOTS["CORRELATIONMATRIX"]) and which in [-1,0]:
             representations.drawCorrelation(self.correlation_data.matrix, title='Correlation matrix')
         if self._isPlotReady(PLOTS["GRANGERCAUSALITYMATRIX"]) and which in [-1,1]:
@@ -597,9 +600,9 @@ class CorrelationDataframe:
         if self._isPlotReady(PLOTS["CORRELATIONSPATIAL"]) and which in [-1,2]:
             MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
             representations.drawCorrelationSpatial(self.correlation_data.matrix, MEA_layout)
-        if which in [-1,0,1,2]:
+        if show and (which in [-1,0,1,2]):
             plt.show(block=False)
-    def drawClustering(self, which=-1):
+    def drawClustering(self, which=-1, show=True):
         if self._isPlotReady(PLOTS["CLUSTEREDEVENTS"]) and which in [-1,0]:
             representations.drawClusteredEvents(self.timestamps, self.linkage)
         if self._isPlotReady(PLOTS["DENDROGRAM"]) and which in [-1,1]:
@@ -607,14 +610,18 @@ class CorrelationDataframe:
         if self._isPlotReady(PLOTS["CLUSTERSSPATIAL"]) and which in [-1,2]:
             MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
             representations.drawClustersSpatial(self.correlation_data, self.clustering_data, MEA_layout)
-        if which in [-1,0,1,2]:
+        if show and (which in [-1,0,1,2]):
             plt.show(block=False)
-    def drawRollingCorrelation(self, which=-1):
+    def drawRollingCorrelation(self, which=-1, show=True):
         if self._isPlotReady(PLOTS["ROLLINGCORRELATION"]) and which in [-1,0]:
             representations.animate_rollingCorrelation(self.rolling_correlation_data, self.waveforms, Fs=self.Fs)
-        if which in [-1,0]:
+        if self._isPlotReady(PLOTS["ROLLINGCORRELATION"]) and which in [-1,1]:
+            representations.drawAverageRollingCorrelation(self.rolling_correlation_data, Fs=self.Fs, which="mean")
+        if self._isPlotReady(PLOTS["ROLLINGCORRELATION"]) and which in [-1,2]:
+            representations.drawAverageRollingCorrelation(self.rolling_correlation_data, Fs=self.Fs, which="median")
+        if show and (which in [-1,0,1,2]):
             plt.show(block=False)
-    def drawRollingPhase(self, which=-1):
+    def drawRollingPhase(self, which=-1, show=True):
         MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
         if self._isPlotReady(PLOTS["ROLLINGPHASE"]) and which in[-1,0]:
             representations.animate_rollingPhase(self.rolling_phase_data, self.waveforms, Fs=self.Fs)
@@ -640,9 +647,9 @@ class CorrelationDataframe:
                 self.rolling_phase_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
                 contour=False, contourlabels=False, contourmap=None,
                 fill=True, fillmap="rainbow_r")
-        if which in [-1,0,1,2,3,4,5]:
+        if show and (which in [-1,0,1,2,3,4,5]):
             plt.show(block=False)
-    def drawRollingOrderStats(self, which=-1):
+    def drawRollingOrderStats(self, which=-1, show=True):
         MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
         # BAR GRAPHS
         if self._isPlotReady(PLOTS["ROLLINGORDERBAR"]) and which in [-1,0]:
@@ -689,15 +696,152 @@ class CorrelationDataframe:
         if self._isPlotReady(PLOTS["ROLLINGORDERTEMPORAL"]) and which in [-1,10]:
             representations.drawLeaderSuccession2D(self.rolling_order_data, layout=MEA_layout, mode="arrows", Fs=self.parameters["processing_Fs"])
         # ---
-        if which in [-1,0,1,2,3,4,5,6,7,8,9,10]:
+        if show and (which in [-1,0,1,2,3,4,5,6,7,8,9,10]):
             plt.show(block=False)
 
-    def drawPhase(self, which=-1):
+    def drawPhase(self, which=-1, show=True):
         if self._isPlotReady(PLOTS["PHASE"]) and which in [-1,0]:
             MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
             representations.drawPhaseSpatial(self.phase_data.matrix, MEA_layout, Fs=self.Fs)
         if which in [-1,0]:
             plt.show(block=False)
+
+    ''' Export all analyses '''
+    def exportAllAnalyses(self, destination_folder=None):
+        ''' Handle default file name '''
+        if destination_folder is None:
+            destination_folder = self.file.rsplit(".", 1)[0]
+        
+        ''' Get base file name '''
+        basename = data_inout.os.path.basename(self.file).rsplit(".", 1)[0]
+
+        ''' Export available data '''
+        print("Exporting available data ...")
+        if self._isExportReady(EXPORTS["CORRELATIONMATRIX"]):
+            destination_subfolder = f"{destination_folder}/Correlation/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportCorrelation(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1) 
+        if self._isExportReady(EXPORTS["DENDROGRAM"]):
+            pass # Not implemented
+        if self._isExportReady(EXPORTS["GRANGERCAUSALITYMATRIX"]):
+            destination_subfolder = f"{destination_folder}/Causality/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportGranger(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1)
+        if self._isExportReady(EXPORTS["PHASE"]):
+            destination_subfolder = f"{destination_folder}/Phase/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportPhase(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1)
+        if self._isExportReady(EXPORTS["ORDER"]):
+            destination_subfolder = f"{destination_folder}/Order/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportOrder(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1)
+        if self._isExportReady(EXPORTS["CLUSTERING"]):
+            destination_subfolder = f"{destination_folder}/Clustering/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportClustering(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1)
+        if self._isExportReady(EXPORTS["ROLLINGCORRELATION"]):
+            destination_subfolder = f"{destination_folder}/Correlation/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportRollingCorrelation(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1)
+        if self._isExportReady(EXPORTS["ROLLINGPHASE"]):
+            destination_subfolder = f"{destination_folder}/Phase/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportRollingPhase(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1)
+        if self._isExportReady(EXPORTS["ROLLINGORDER"]):
+            destination_subfolder = f"{destination_folder}/Order/"
+            destination_file = f"{destination_subfolder}/{basename}.xlsx"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.exportRollingOrder(destination=destination_file, which=-1) # Data export is done for all available data types (which = -1)
+        colprint.printokg("Data exported.")
+
+        ''' Export available figures '''
+        print("Exporting available figures ...")
+        if self._isPlotReady(PLOTS["CORRELATIONMATRIX"]):
+            destination_subfolder = f"{destination_folder}/Correlation/"
+            destination_file = f"{destination_subfolder}/{basename}.correlation_matrix.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawCorrelation(which=0, show=False) ; plt.savefig(destination_file) ; plt.close()
+        if self._isPlotReady(PLOTS["GRANGERCAUSALITYMATRIX"]):
+            destination_subfolder = f"{destination_folder}/Causality/"
+            destination_file = f"{destination_subfolder}/{basename}.granger_matrix.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawCorrelation(which=1, show=False) ; plt.savefig(destination_file) ; plt.close()
+        if self._isPlotReady(PLOTS["CORRELATIONSPATIAL"]):
+            destination_subfolder = f"{destination_folder}/Correlation/"
+            destination_file = f"{destination_subfolder}/{basename}.correlation_spatial.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawCorrelation(which=2, show=False) ; plt.savefig(destination_file) ; plt.close()
+        if self._isPlotReady(PLOTS["CLUSTEREDEVENTS"]):
+            destination_subfolder = f"{destination_folder}/Clustering/"
+            destination_file = f"{destination_subfolder}/{basename}.clustering.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawClustering(which=0, show=False) ; plt.savefig(destination_file) ; plt.close()
+        if self._isPlotReady(PLOTS["DENDROGRAM"]):
+            destination_subfolder = f"{destination_folder}/Clustering/"
+            destination_file = f"{destination_subfolder}/{basename}.dendrogram.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawClustering(which=1, show=False) ; plt.savefig(destination_file) ; plt.close()
+        if self._isPlotReady(PLOTS["PHASE"]):
+            destination_subfolder = f"{destination_folder}/Phase/"
+            destination_file = f"{destination_subfolder}/{basename}.phase.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawPhase(which=0, show=False) ; plt.savefig(destination_file) ; plt.close()
+        if self._isPlotReady(PLOTS["ROLLINGCORRELATION"]):
+            destination_subfolder = f"{destination_folder}/Correlation/"
+            destination_file = f"{destination_subfolder}/{basename}.rolling_correlation.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawRollingCorrelation(which=1, show=False) ; plt.savefig(destination_file.replace(".png", ".mean.png")) ; plt.close()
+            self.drawRollingCorrelation(which=2, show=False) ; plt.savefig(destination_file.replace(".png", ".median.png")) ; plt.close()
+        if self._isPlotReady(PLOTS["ROLLINGPHASE"]):
+            pass # No plot to export - animation only
+        if self._isPlotReady(PLOTS["ROLLINGPHASESPATIAL"]):
+            pass # No plot to export - animation only
+        if self._isPlotReady(PLOTS["ROLLINGPHASESPATIALSTATIC"]):
+            destination_subfolder = f"{destination_folder}/Phase/"
+            destination_file = f"{destination_subfolder}/{basename}.rolling_phase.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            ''' This may take a while if all three are exported ; uncomment according to preference '''
+            # self.drawRollingPhase(which=3, show=False) ; plt.savefig(destination_file.replace(".png", ".A.png")) ; plt.close()
+            # self.drawRollingPhase(which=4, show=False) ; plt.savefig(destination_file.replace(".png", ".B.png")) ; plt.close()
+            self.drawRollingPhase(which=5, show=False) ; plt.savefig(destination_file.replace(".png", ".C.png")) ; plt.close()
+        if self._isPlotReady(PLOTS["ROLLINGORDERSPATIAL"]):
+            pass # No plot to export - animation only
+        if self._isPlotReady(PLOTS["ROLLINGORDERBAR"]):
+            destination_subfolder = f"{destination_folder}/Order/"
+            destination_file = f"{destination_subfolder}/{basename}.order_stats.bar.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawRollingOrderStats(which=0, show=False) ; plt.savefig(destination_file.replace(".png", ".png")) ; plt.close()
+            self.drawRollingOrderStats(which=1, show=False) ; plt.savefig(destination_file.replace(".png", ".H1.png")) ; plt.close()
+            self.drawRollingOrderStats(which=2, show=False) ; plt.savefig(destination_file.replace(".png", ".H2.png")) ; plt.close()
+            self.drawRollingOrderStats(which=3, show=False) ; plt.savefig(destination_file.replace(".png", ".H3.png")) ; plt.close()
+        if self._isPlotReady(PLOTS["ROLLINGORDERPIE"]):
+            destination_subfolder = f"{destination_folder}/Order/"
+            destination_file = f"{destination_subfolder}/{basename}.order_stats.pie.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawRollingOrderStats(which=4, show=False) ; plt.savefig(destination_file.replace(".png", ".png")) ; plt.close()
+            self.drawRollingOrderStats(which=5, show=False) ; plt.savefig(destination_file.replace(".png", ".H1.png")) ; plt.close()
+            self.drawRollingOrderStats(which=6, show=False) ; plt.savefig(destination_file.replace(".png", ".H2.png")) ; plt.close()
+            self.drawRollingOrderStats(which=7, show=False) ; plt.savefig(destination_file.replace(".png", ".H3.png")) ; plt.close()
+        if self._isPlotReady(PLOTS["CLUSTERSSPATIAL"]):
+            destination_subfolder = f"{destination_folder}/Clustering/"
+            destination_file = f"{destination_subfolder}/{basename}.clustering.spatial.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawClustering(which=2, show=False) ; plt.savefig(destination_file) ; plt.close()
+        if self._isPlotReady(PLOTS["ROLLINGORDERTEMPORAL"]):
+            destination_subfolder = f"{destination_folder}/Order/"
+            destination_file = f"{destination_subfolder}/{basename}.order_stats.succession.png"
+            data_inout.pathlib.Path(destination_subfolder).mkdir(parents=True, exist_ok=True)
+            self.drawRollingOrderStats(which= 9, show=False) ; plt.savefig(destination_file.replace(".png", ".A.png")) ; plt.close()
+            self.drawRollingOrderStats(which=10, show=False) ; plt.savefig(destination_file.replace(".png", ".B.png")) ; plt.close()
+        colprint.printokg("Figures exported.")
+
     ''' Parameter handling '''
     def importParameters(self, path):
         with open(path, 'r') as fid:

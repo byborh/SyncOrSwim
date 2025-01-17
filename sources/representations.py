@@ -138,21 +138,43 @@ def drawRollingCorrelation(rolling_correlation, Fs=1.):
     # plt.show()
     return f
 
-def drawAverageRollingCorrelation(rolling_correlation, Fs=1., ax=None):
+def drawAverageRollingCorrelation(rolling_correlation, Fs=1., ax=None, which="median"):
     if ax is None:
         h = plt.figure(figsize=(7,5))
         ax = h.add_subplot(111)
     labels = rolling_correlation[0].matrix.columns
     correlation = np.zeros(len(rolling_correlation))
     time        = np.asarray([rc.interval[0]/Fs for rc in rolling_correlation])
-    N = 0
+    Ncombinations = len(labels) * (len(labels) - 1) // 2
 
-    for l0,l1 in itertools.combinations(labels, 2):
-        correlation += np.asarray([rc.matrix[l0][l1] for rc in rolling_correlation])
-        N += 1
-    correlation /= N
-    ax.plot(time, correlation)
-    ax.set_title("Rolling correlation (averaged)")
+    correlation_all = np.zeros((len(rolling_correlation), Ncombinations))
+    
+    for i,(l0,l1) in enumerate(itertools.combinations(labels, 2)):
+        correlation_l0_l1 = [rc.matrix[l0][l1] for rc in rolling_correlation]
+        correlation_all[:,i] = correlation_l0_l1
+
+    if which == "mean":
+        correlation_avg = correlation_all.mean(axis=1)
+        correlation_std = correlation_all.std(axis=1)
+        ax.plot(time, correlation_avg, color='black', lw=2)
+        ax.fill_between(time, correlation_avg - correlation_std, correlation_avg + correlation_std, color="gray", alpha=.5)
+        ax.plot(time, correlation_avg - correlation_std, color='black', lw=.5, ls=':')
+        ax.plot(time, correlation_avg + correlation_std, color='black', lw=.5, ls=':')
+        ax.set_title("Rolling correlation (Mean ± SD)")
+    if which == "median":
+        correlation_q25 = np.percentile(correlation_all, 25, axis=1)
+        correlation_q50 = np.percentile(correlation_all, 50, axis=1)
+        correlation_q75 = np.percentile(correlation_all, 75, axis=1)
+        ax.plot(time, correlation_q50, color='black', lw=2)
+        ax.fill_between(time, correlation_q25, correlation_q75, color="gray", alpha=.5)
+        ax.plot(time, correlation_q25, color='black', lw=.5, ls=':')
+        ax.plot(time, correlation_q75, color='black', lw=.5, ls=':')
+        ax.set_title("Rolling correlation (Q1-Median-Q3)")
+        
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Correlation [-1;1]")
+    ax.set_ylim((-1,1))
+    ax.grid()
     return ax.get_figure()
 
 def drawClusteredRollingCorrelation(rolling_correlation, clusters):
@@ -660,6 +682,9 @@ def drawLeaderSuccession2D(rolling_order_data, layout, mode="arrows", Fs=1., ax=
         # Filter path for visibility
         box_pts = Nsmooth
         box = np.ones(box_pts)/box_pts
+        if not(path_xpoints) or not(path_ypoints):
+            print("drawLeaderSuccession2D : no data to plot")
+            return h
         path_xpoints = np.convolve(path_xpoints, box, mode='same')
         path_ypoints = np.convolve(path_ypoints, box, mode='same')
 
@@ -711,6 +736,23 @@ def drawCorrelationSpatial(correlation_data, layout, threshold=0.5, ax=None, lab
           ax.plot([],[],color=cmap(x), label=f"{x}")
     ax.legend()
     ax.axis('equal')
+
+def _drawAverageRollingCorrelation(rolling_correlation, Fs=1., ax=None):
+    if ax is None:
+        h = plt.figure(figsize=(7,5))
+        ax = h.add_subplot(111)
+    labels = rolling_correlation[0].matrix.columns
+    correlation = np.zeros(len(rolling_correlation))
+    time        = np.asarray([rc.interval[0]/Fs for rc in rolling_correlation])
+    N = 0
+
+    for l0,l1 in itertools.combinations(labels, 2):
+        correlation += np.asarray([rc.matrix[l0][l1] for rc in rolling_correlation])
+        N += 1
+    correlation /= N
+    ax.plot(time, correlation)
+    ax.set_title("Rolling correlation (averaged)")
+    return ax.get_figure()
 
 def _draw_waveforms_region_stacked(waveforms, interval, Fs, ax, normalize=False):
     minalpha = 0.25
@@ -767,7 +809,7 @@ def animate_rollingCorrelation(rolling_correlation, waveforms, Fs=1., autorun=Tr
     a1 = fig.add_axes([0.55, 0.10, 0.35, 0.55])
     N = len(rolling_correlation)
     ''' init '''
-    drawAverageRollingCorrelation(rolling_correlation, Fs, aa)
+    _drawAverageRollingCorrelation(rolling_correlation, Fs, aa)
     cursor0, = aa.plot([0], [0], color='red')
     cursor1, = aa.plot([0], [0], color='red')
     ylim = [0,1]

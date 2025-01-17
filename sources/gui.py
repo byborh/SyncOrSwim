@@ -208,6 +208,7 @@ if __name__ == "__main__":
     analysisctrl_labelframe = ttk.Labelframe(root, text="Control")
     analysisctrl_import_params_button = tk.Button(analysisctrl_labelframe, text="Import parameters")
     analysisctrl_export_params_button = tk.Button(analysisctrl_labelframe, text="Export parameters")
+    analysisctrl_export_analyses_button = tk.Button(analysisctrl_labelframe, text="Export available analyses")
     analysisctrl_run_button = tk.Button(analysisctrl_labelframe, text="Run", bg='blue', fg='white')
     analysisctrl_run_button.configure(state="disabled")
 
@@ -215,7 +216,8 @@ if __name__ == "__main__":
     analysisctrl_labelframe.grid(row=3, column=0, columnspan=2, **LABELFRAMES_GRID_PARAMS)    # Root grid
     analysisctrl_import_params_button.grid(row=0, column=0)                                   # Local grid
     analysisctrl_export_params_button.grid(row=0, column=1)                                   # Local grid
-    analysisctrl_run_button.grid(row=0, column=2)                                             # Local grid
+    analysisctrl_export_analyses_button.grid(row=0, column=2)                                 # Local grid
+    analysisctrl_run_button.grid(row=0, column=3)                                             # Local grid
 
     """ Signature """
     signature_label = tk.Label(root, text=f"Version {__version__} - antoine.pirog@ims-bordeaux.fr", justify=tk.CENTER)
@@ -428,6 +430,8 @@ if __name__ == "__main__":
     add_plot_entry(analyses_widgets["CORRELATION"]["show_button"]       , "Correlation (spatial)"                           , lambda: ENGINE.drawCorrelation(2)       , engine.PLOTS["CORRELATIONSPATIAL"])
     add_plot_entry(analyses_widgets["PHASE"]["show_button"]             , "Phase"                                           , lambda: ENGINE.drawPhase(0)         , engine.PLOTS["PHASE"             ])
     add_plot_entry(analyses_widgets["ROLLINGCORRELATION"]["show_button"], "Rolling correlation (animation)"                 , lambda: ENGINE.drawRollingCorrelation(0), engine.PLOTS["ROLLINGCORRELATION"])
+    add_plot_entry(analyses_widgets["ROLLINGCORRELATION"]["show_button"], "Rolling correlation (mean±SD)"                   , lambda: ENGINE.drawRollingCorrelation(1), engine.PLOTS["ROLLINGCORRELATION"])
+    add_plot_entry(analyses_widgets["ROLLINGCORRELATION"]["show_button"], "Rolling correlation (Q1-Median-Q3)"              , lambda: ENGINE.drawRollingCorrelation(2), engine.PLOTS["ROLLINGCORRELATION"])
     add_plot_entry(analyses_widgets["ROLLINGPHASE"]["show_button"]      , "Rolling phase (animation)"                       , lambda: ENGINE.drawRollingPhase(0)  , engine.PLOTS["ROLLINGPHASE"])
     add_plot_entry(analyses_widgets["ROLLINGPHASE"]["show_button"]      , "Rolling phase spatial (animation)"               , lambda: ENGINE.drawRollingPhase(1)  , engine.PLOTS["ROLLINGPHASESPATIAL"])
     add_plot_entry(analyses_widgets["ROLLINGPHASE"]["show_button"]      , "Rolling phase spatial (isolines & labels)"       , lambda: ENGINE.drawRollingPhase(2)  , engine.PLOTS["ROLLINGPHASESPATIALSTATIC"])
@@ -548,6 +552,16 @@ if __name__ == "__main__":
             message(msg)
             colprint.printokg(msg)
 
+    @assets.alertonfail
+    def export_all_analyses(directory_path=None):
+        if directory_path is None:
+            directory_path = tkfd.askdirectory()
+        if directory_path:
+            ENGINE.exportAllAnalyses(directory_path)
+            msg = "Export successful"
+            message(msg)
+            colprint.printokg(msg)
+
     """ Overload command-line functions to a graphic alternative """
     # engine.processing.pbar = pbar
     engine.prompt_fs = prompt_fs
@@ -599,6 +613,7 @@ if __name__ == "__main__":
     analysisctrl_run_button["command"] = run
     analysisctrl_import_params_button["command"] = import_parameters
     analysisctrl_export_params_button["command"] = export_parameters
+    analysisctrl_export_analyses_button["command"] = export_all_analyses
     sourcedata_mealayout_dropdown_strvar.trace('w', lambda *args: sourcedata_mealabeling_dropdown_strvar.set(sourcedata_mealayout_dropdown_strvar.get()))
     sourcedata_mealayout_dropdown_strvar
 
