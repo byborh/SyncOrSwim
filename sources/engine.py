@@ -614,7 +614,7 @@ class CorrelationDataframe:
             plt.show(block=False)
     def drawRollingCorrelation(self, which=-1, show=True):
         if self._isPlotReady(PLOTS["ROLLINGCORRELATION"]) and which in [-1,0]:
-            representations.animate_rollingCorrelation(self.rolling_correlation_data, self.waveforms, Fs=self.Fs)
+            representations.animate_rollingCorrelation(self.rolling_correlation_data, self.waveforms, Fs=self.Fs, env=self.parameters['environment'])
         if self._isPlotReady(PLOTS["ROLLINGCORRELATION"]) and which in [-1,1]:
             representations.drawAverageRollingCorrelation(self.rolling_correlation_data, Fs=self.Fs, which="mean")
         if self._isPlotReady(PLOTS["ROLLINGCORRELATION"]) and which in [-1,2]:
@@ -624,9 +624,9 @@ class CorrelationDataframe:
     def drawRollingPhase(self, which=-1, show=True):
         MEA_layout = getattr(MEAs, self.parameters["MEA_layout"]) if type(self.parameters["MEA_layout"]) is str else self.parameters["MEA_layout"]
         if self._isPlotReady(PLOTS["ROLLINGPHASE"]) and which in[-1,0]:
-            representations.animate_rollingPhase(self.rolling_phase_data, self.waveforms, Fs=self.Fs)
+            representations.animate_rollingPhase(self.rolling_phase_data, self.waveforms, Fs=self.Fs, env=self.parameters['environment'])
         if self._isPlotReady(PLOTS["ROLLINGPHASESPATIAL"]) and which in[-1,1]:
-            representations.animate_rollingPhaseSpatial(self.rolling_phase_data, MEA_layout, self.waveforms, Fs=self.Fs)
+            representations.animate_rollingPhaseSpatial(self.rolling_phase_data, MEA_layout, self.waveforms, Fs=self.Fs, env=self.parameters['environment'])
         if self._isPlotReady(PLOTS["ROLLINGPHASESPATIALSTATIC"]) and which in[-1,2]:
             representations.drawRollingPhaseSpatial(
                 self.rolling_phase_data, MEA_layout, Fs=self.Fs, reference_channel=self.parameters["hub_reference"], speed=False,
