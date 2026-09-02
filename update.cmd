@@ -1,2 +1,3 @@
 cd %CD%
-git pull --recurse-submodules https://git.renater.fr/anonscm/git/pypanephy/SyncOrSwim.git
+git pull --recurse-submodules https://github.com/antoine-pirog/SyncOrSwim.git
+pause

@@ -1,2 +1,4 @@
 cd %CD%
-cmd.exe /K "venv\Scripts\python.exe -m pip install -r requirements.txt --upgrade"
+venv\Scripts\python.exe -m pip install -r requirements.txt --upgrade
+pause
+
