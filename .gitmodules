@@ -3,4 +3,4 @@
 	url = https://git.renater.fr/anonscm/git/pypanephy/Hardware.git
 [submodule "sources/datamanager"]
 	path = sources/datamanager
-	url = https://git.renater.fr/anonscm/git/pypanephy/datamanager.git
+	url = https://github.com/antoine-pirog/EphyDatamanager.git
