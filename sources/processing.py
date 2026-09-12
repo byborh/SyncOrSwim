@@ -64,7 +64,7 @@ def eventWaveforms(timestamps=None, sigma_samples=1):
     ''' Generate gaussian signals '''
     allGaussEvents = {}
     Ng = int((2*Nsigma) * sigma_samples + 1)
-    gaussSignal = signal.gaussian(Ng, std=sigma_samples)
+    gaussSignal = signal.windows.gaussian(Ng, std=sigma_samples)
     diracEvents = np.zeros(Np)
     gaussEvents = np.zeros(Np)
     for k in timestamps:
